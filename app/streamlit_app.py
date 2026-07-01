@@ -519,6 +519,51 @@ def main() -> None:
                 mime="application/json",
             )
 
+        # PDF export (Lane 1, PDF-audit plan). Lazy-import report_export so
+        # the reportlab import cost is paid only when the user actually
+        # requests a PDF — keeps first-page load fast.
+        try:
+            from app.report_export import render_pdf_report  # noqa: WPS433
+
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".pdf", prefix="cv_review_pdf_"
+            ) as pdf_tf:
+                pdf_path = Path(pdf_tf.name)
+            try:
+                pdf_name = f"{Path(uploaded.name).stem}_review.pdf"
+                render_pdf_report(
+                    {
+                        "file": uploaded.name,
+                        "overall": report.overall,
+                        "grade": report.grade,
+                        "summary": summary,
+                        "role": report.role,
+                        "role_confidence": report.role_confidence,
+                        "sections": {
+                            name: {
+                                "score": s.score,
+                                "evidence": s.evidence,
+                                "issues": s.issues,
+                                "feedback": feedback.get(name, ""),
+                            }
+                            for name, s in report.sections.items()
+                        },
+                    },
+                    pdf_path,
+                )
+                with open(pdf_path, "rb") as pf:
+                    st.download_button(
+                        "📄 Download PDF Report",
+                        data=pf.read(),
+                        file_name=pdf_name,
+                        mime="application/pdf",
+                        key=f"pdf_download_{uploaded.name}",
+                    )
+            finally:
+                pdf_path.unlink(missing_ok=True)
+        except Exception as pdf_err:  # pragma: no cover — UI fallback only
+            st.warning(f"PDF export unavailable: {pdf_err}")
+
     except Exception as e:
         st.error(f"Failed to review CV: {e}")
         st.exception(e)
