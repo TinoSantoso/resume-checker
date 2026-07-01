@@ -111,6 +111,41 @@ python3 -m app.feedback data/sample_medium.pdf
 | `sample_medium.pdf` (data analyst, mixed) | 4.2 | F |
 | `sample_weak.pdf` (weak verbs, no metrics) | 2.4 | F |
 
+
+
+## Mobile responsive layout
+
+The Streamlit UI is mobile-first responsive thanks to `assets/styles.css` and the
+`app/streamlit_layout.inject_responsive_css()` helper wired into `main()`.
+
+**Breakpoints**
+
+| Range          | Target                    |
+|----------------|---------------------------|
+| ≤ 480 px       | Mobile portrait (stacked) |
+| 481–768 px     | Mobile landscape / tablet |
+| 769–1024 px    | Tablet / small desktop    |
+| ≥ 1025 px      | Desktop                   |
+
+**Key mobile behaviors**
+
+- Sidebar auto-collapses on small screens (Streamlit `initial_sidebar_state="auto"`).
+- Section scores render as cards (stacked on mobile, side-by-side on desktop).
+- Tables get `overflow-x: auto` so they scroll horizontally instead of overflowing.
+- PDF download button uses `position: sticky` on mobile so it stays visible while scrolling.
+- All touch targets ≥ 44 px (Apple HIG / WCAG 2.5.5).
+- Base font 16 px on mobile inputs (prevents iOS Safari auto-zoom on focus).
+
+**Test**
+
+```bash
+PYTHONPATH=. .venv/bin/python -m pytest tests/test_streamlit_layout.py -v
+```
+
+15 tests cover: 4 breakpoints, semantic selectors (.score-card, .section-row,
+.pdf-download-btn), sticky PDF button, 44 px touch targets, 16 px iOS font,
+HTML escaping in `card_container`, and `streamlit_app.py` module import safety.
+
 ## Limitations
 
 - **English-leaning** (KB is English; Indonesian support is partial via the

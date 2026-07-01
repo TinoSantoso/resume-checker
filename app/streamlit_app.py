@@ -439,6 +439,11 @@ def main() -> None:
         # Importing for tests / library use. Don't touch Streamlit.
         return
 
+    # Mobile responsive CSS injection (Lane 2 — full responsive layout).
+    # Lazy import keeps Streamlit import snappy when module is loaded for tests.
+    from .streamlit_layout import inject_responsive_css
+    inject_responsive_css()
+
     uploaded = st.file_uploader(
         "Upload CV (PDF or DOCX)",
         type=["pdf", "docx"],

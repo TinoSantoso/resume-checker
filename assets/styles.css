@@ -1,0 +1,263 @@
+/* ==========================================================================
+ * Resume Reviewer — Mobile-first responsive stylesheet
+ *
+ * Breakpoints (mobile-first):
+ *   base     — single column, sticky PDF button, 44px touch targets,
+ *              16px base font (iOS Safari zoom prevention)
+ *   481px+   — tablet tweaks (2-column where it helps)
+ *   769px+   — desktop confirmation (mostly identity with the base rules
+ *              so the layout stays unchanged on a typical laptop)
+ *   1025px+  — large desktop (wider gutters, max content width)
+ *
+ * Design system:
+ *   --primary: #2563eb (Streamlit blue, matches brand)
+ *   --accent:  #f59e0b (warn / score-card highlight)
+ *   --bg-card: #f8fafc
+ *   --border:  #e2e8f0
+ *
+ * The selectors target semantic classes (``.score-card``,
+ * ``.section-row``, ``.pdf-download-btn``) AND high-specificity
+ * Streamlit selectors (``.stButton > button``, ``.stDataFrame``) so
+ * the cascade wins without ``!important`` everywhere.
+ * ========================================================================== */
+
+:root {
+  --rr-primary: #2563eb;
+  --rr-accent: #f59e0b;
+  --rr-bg-card: #f8fafc;
+  --rr-bg-card-strong: #ffffff;
+  --rr-border: #e2e8f0;
+  --rr-text: #0f172a;
+  --rr-text-muted: #475569;
+  --rr-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* --------------------------------------------------------------------------
+ * Mobile-first base rules (<= 480px effective, but apply everywhere
+ * unless overridden below — progressive enhancement).
+ * ----------------------------------------------------------------------- */
+
+/* Root typography: 16px prevents iOS Safari from zooming on input focus. */
+html {
+  font-size: 16px;
+}
+
+/* Wrap Streamlit's main container so we can control overflow on tables. */
+.main .block-container {
+  padding-top: 1rem;
+  padding-bottom: 6rem; /* leave room for the sticky PDF button */
+  max-width: 100%;
+}
+
+/* Score-card pattern — used by render_score_card() in streamlit_app.py.
+ * On mobile the columns stack naturally via Streamlit's flex fallback.
+ */
+.score-card {
+  background: var(--rr-bg-card);
+  border: 1px solid var(--rr-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--rr-shadow);
+}
+
+.score-card__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--rr-text-muted);
+  margin: 0 0 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.score-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--rr-text);
+  margin: 0;
+}
+
+.score-card__hint {
+  font-size: 0.75rem;
+  color: var(--rr-text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Section-row pattern — single column on mobile, side-by-side on desktop. */
+.section-row {
+  display: flex;
+  flex-direction: column; /* mobile: stack */
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rr-border);
+  border-radius: 0.5rem;
+  background: var(--rr-bg-card-strong);
+  margin-bottom: 0.75rem;
+}
+
+/* PDF download button — sticky on mobile so it stays reachable while
+ * scrolling through long section reports.
+ */
+.pdf-download-btn {
+  position: sticky;
+  bottom: 0.5rem;
+  z-index: 100;
+  background: var(--rr-primary);
+  color: #ffffff;
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  margin-top: 1rem;
+}
+
+/* All Streamlit buttons get full-width + 44px min-height for touch. */
+.stButton > button,
+button[data-testid="baseButton-secondary"],
+button[data-testid="baseButton-primary"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.625rem 1rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+}
+
+/* Sliders — touch-friendly. */
+.stSlider [data-baseweb="slider"] [role="slider"] {
+  width: 28px;
+  height: 28px;
+}
+
+/* Inputs / textareas — 16px font-size prevents iOS Safari zoom. */
+input,
+textarea,
+.stTextInput input,
+.stTextArea textarea {
+  font-size: 16px;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Tables — horizontally scrollable so wide JD-match tables don't overflow. */
+.stDataFrame,
+[data-testid="stTable"] {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+  max-width: 100%;
+}
+
+/* Expander — give the header a 44px tap area. */
+.streamlit-expanderHeader,
+[data-testid="stExpander"] details summary {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Sidebar — auto-collapse handled by Streamlit (initial_sidebar_state).
+ * Just ensure the toggle button is also touch-sized.
+ */
+[data-testid="stSidebar"] [data-testid="baseButton-header"] {
+  min-height: 44px;
+}
+
+/* --------------------------------------------------------------------------
+ * Tablet (481px — 768px): two-column where helpful, slightly larger cards.
+ * ----------------------------------------------------------------------- */
+
+@media (min-width: 481px) {
+  .main .block-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 5rem;
+  }
+
+  .section-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .score-card {
+    padding: 1.25rem;
+  }
+
+  /* Buttons shrink back to auto width — full-width looks stretched on tablet. */
+  .stButton > button,
+  button[data-testid="baseButton-secondary"],
+  button[data-testid="baseButton-primary"] {
+    width: auto;
+    min-width: 120px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Desktop (769px — 1024px): confirm layout, restore normal column gutters.
+ * ----------------------------------------------------------------------- */
+
+@media (min-width: 769px) {
+  .main .block-container {
+    padding-left: 3rem;
+    padding-right: 3rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .score-card {
+    padding: 1.5rem;
+  }
+
+  .section-row {
+    flex-direction: row;
+  }
+
+  .stButton > button,
+  button[data-testid="baseButton-secondary"],
+  button[data-testid="baseButton-primary"] {
+    min-height: 38px; /* desktop: keyboard-friendly is enough */
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Large desktop (1025px+): wider content, generous whitespace.
+ * ----------------------------------------------------------------------- */
+
+@media (min-width: 1025px) {
+  .main .block-container {
+    max-width: 1200px;
+    padding-left: 4rem;
+    padding-right: 4rem;
+  }
+
+  .score-card {
+    padding: 1.75rem;
+  }
+
+  .score-card__value {
+    font-size: 1.75rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Accessibility helpers.
+ * ----------------------------------------------------------------------- */
+
+/* Honor the user's reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Visible focus ring for keyboard users (WCAG 2.4.7). */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--rr-primary);
+  outline-offset: 2px;
+}
