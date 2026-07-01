@@ -12,6 +12,13 @@ from app.feedback import generate_feedback, generate_overall_summary
 from app.scorer import grade_for, score_cv
 from app.role_detector import VALID_ROLES, detect_role_from_sections
 from app.rubric_registry import RUBRIC_ROLES, load_rubric
+from app.corrections import (
+    Correction,
+    append_correction,
+    corrections_summary,
+    load_corrections as _load_corrections,
+    validate_correction_payload,
+)
 from app.health import (
     check_ollama_health,
     health_summary_text,
@@ -191,6 +198,144 @@ def render_section(name: str, section, feedback_text: str | None) -> None:
             st.markdown("**🤖 Reviewer feedback**")
             st.markdown(feedback_text)
 
+        # C5: Human-in-the-loop correction form.
+        render_correction_form(name, section)
+
+
+# --------------------------------------------------------------------------- #
+# C5 — HITL correction UI
+# --------------------------------------------------------------------------- #
+
+CORRECTIONS_LOG_PATH = Path("data/validation/corrections.jsonl")
+
+
+def _build_correction(
+    cv_filename: str,
+    section: str,
+    auto_score: float,
+    human_score: float,
+    auto_evidence: str = "",
+    human_evidence: str = "",
+    recruiter_id: str = "",
+) -> Correction:
+    """Build a Correction dataclass from form values.
+
+    Pure function (no I/O) — kept separate from the Streamlit form
+    so the construction logic is unit-testable.
+    """
+    return Correction(
+        cv_filename=cv_filename,
+        section=section,
+        auto_score=float(auto_score),
+        human_score=float(human_score),
+        auto_evidence=auto_evidence,
+        human_evidence=human_evidence,
+        recruiter_id=recruiter_id,
+    )
+
+
+def _persist_correction(correction: Correction, path: Path = CORRECTIONS_LOG_PATH) -> str:
+    """Validate + append a correction. Returns "" on success, error msg on failure.
+
+    Pure function (just file I/O). Used by both the UI callback and the tests.
+    """
+    payload = correction.to_row()
+    # Always include the auto_score/human_score/section/cv_filename for validation
+    payload.update({
+        "cv_filename": correction.cv_filename,
+        "section": correction.section,
+        "auto_score": correction.auto_score,
+        "human_score": correction.human_score,
+    })
+    ok, err = validate_correction_payload(payload)
+    if not ok:
+        return err
+    try:
+        append_correction(path, correction)
+    except OSError as e:
+        return f"failed to write log: {e}"
+    return ""
+
+
+def render_correction_form(section_name: str, section) -> None:
+    """Inline Streamlit form for collecting a recruiter override of a section score.
+
+    The form is collapsed by default (an expander). On submit, it
+    writes one row to ``data/validation/corrections.jsonl`` via
+    ``_persist_correction`` (which validates and appends).
+    """
+    # The CV filename comes from the session state set in main(). If
+    # missing (e.g. a test render), fall back to a placeholder so the
+    # form does not crash.
+    cv_filename = st.session_state.get("current_cv_filename", "(unknown)")
+
+    auto_evidence_text = "\n".join(getattr(section, "evidence", []) or [])
+    auto_issues_text = "\n".join(getattr(section, "issues", []) or [])
+
+    with st.expander("✏️ Correct this score (HITL)", expanded=False):
+        st.caption(
+            f"Auto scored **{section.score} / 10**. Override if the heuristic missed."
+        )
+        with st.form(key=f"corr_{section_name}", clear_on_submit=True):
+            new_score = st.slider(
+                "Your score",
+                min_value=0.0,
+                max_value=10.0,
+                value=float(section.score),
+                step=0.5,
+                key=f"corr_score_{section_name}",
+            )
+            human_evidence = st.text_area(
+                "Why? (optional)",
+                key=f"corr_evidence_{section_name}",
+                height=80,
+            )
+            recruiter_id = st.text_input(
+                "Recruiter ID (optional)",
+                key=f"corr_recruiter_{section_name}",
+            )
+            submitted = st.form_submit_button("Save correction")
+            if submitted:
+                if abs(new_score - section.score) < 1e-6 and not human_evidence:
+                    st.info("Score unchanged and no reason given — nothing to save.")
+                else:
+                    corr = _build_correction(
+                        cv_filename=cv_filename,
+                        section=section_name,
+                        auto_score=section.score,
+                        human_score=new_score,
+                        auto_evidence=auto_evidence_text + ("\nIssues: " + auto_issues_text if auto_issues_text else ""),
+                        human_evidence=human_evidence,
+                        recruiter_id=recruiter_id,
+                    )
+                    err = _persist_correction(corr)
+                    if err:
+                        st.error(f"Failed to save correction: {err}")
+                    else:
+                        st.success(
+                            f"✅ Correction saved (auto={section.score}, "
+                            f"yours={new_score}, Δ={new_score - section.score:+.1f})"
+                        )
+
+
+def render_corrections_summary_panel() -> None:
+    """Sidebar/footer widget showing aggregate HITL corrections.
+
+    Reads the log on every render (the file is small — 1 row ≈ 200 bytes).
+    """
+    summary = corrections_summary(CORRECTIONS_LOG_PATH)
+    if summary["total"] == 0:
+        return
+    st.divider()
+    st.markdown(f"### 📊 HITL corrections ({summary['total']} total)")
+    for sec, info in sorted(summary["by_section"].items()):
+        delta = info["mean_delta"]
+        arrow = "↑" if delta > 0 else "↓" if delta < 0 else "="
+        st.caption(
+            f"- **{sec}**: n={info['n']}, mean Δ={arrow}{abs(delta):.1f} "
+            f"(auto was {'too low' if delta > 0 else 'too high' if delta < 0 else 'spot on'})"
+        )
+
 
 def render_jd_match(jd_match) -> None:
     """Render the JD match panel: required coverage, gaps, nice-to-haves."""
@@ -276,84 +421,111 @@ def save_report(report, feedback: Dict[str, str], summary: str, pdf_name: str) -
     }
     out_file = out_dir / f"{Path(pdf_name).stem}_review.json"
     out_file.write_text(json.dumps(payload, indent=2))
-    return out_file# --------------------------------------------------------------------------- #
+    return out_file
+
+
+# --------------------------------------------------------------------------- #
 # Main flow
 # --------------------------------------------------------------------------- #
-uploaded = st.file_uploader(
-    "Upload CV (PDF or DOCX)",
-    type=["pdf", "docx"],
-)
+def main() -> None:
+    """Streamlit entry point.
 
-if uploaded is None:
-    st.info("👆 Upload a CV to begin. Try one of your own first — the model is small.")
-    st.stop()
+    Split out from module-level so that ``import app.streamlit_app``
+    (used by tests) does NOT trigger Streamlit widgets. We only call
+    this when a real ScriptRunContext exists.
+    """
+    from streamlit import runtime as _runtime
+    if not _runtime.exists():
+        # Importing for tests / library use. Don't touch Streamlit.
+        return
 
-# Optional Job Description input (P1.2)
-jd_text = st.text_area(
-    "📋 Optional: paste a Job Description to match against",
-    height=180,
-    placeholder=(
-        "Paste the full JD here. Include a 'Requirements' or 'Qualifications' "
-        "section for best results — the matcher pulls required skills from there."
-    ),
-)
-use_jd = bool(jd_text.strip())
-
-# Save upload to a temp file (PyMuPDF needs a path).
-suffix = ".pdf" if uploaded.name.lower().endswith(".pdf") else ".docx"
-with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tf:
-    tf.write(uploaded.read())
-    cv_path = tf.name
-
-try:
-    with st.spinner("Parsing & scoring…"):
-        # Translate UI "auto" → None (lets score_cv auto-detect).
-        # Otherwise pass the explicit role through.
-        role_arg = None if role_pref == "auto" else role_pref
-        report = score_cv(cv_path, jd_text=jd_text if use_jd else None, role=role_arg)
-
-    # Per-section LLM feedback runs concurrently (P1.3). Show progress
-    # in the spinner as each section completes.
-    progress_bar = st.progress(0.0, text="Generating LLM feedback…")
-    sections_total = len(report.sections)
-
-    def _on_section_done(name: str, completed: int, total: int) -> None:
-        progress_bar.progress(
-            completed / total,
-            text=f"🤖 {name} done ({completed}/{total})",
-        )
-
-    # Language: optional override from UI; else auto-detect from CV.
-    feedback = generate_feedback(
-        report,
-        progress_cb=_on_section_done,
-        language=language_pref if language_pref != "auto" else None,
+    uploaded = st.file_uploader(
+        "Upload CV (PDF or DOCX)",
+        type=["pdf", "docx"],
     )
-    summary = generate_overall_summary(report, feedback)
-    progress_bar.empty()
 
-    render_score_card(report)
-    if report.jd_match is not None:
-        render_jd_match(report.jd_match)
-    render_summary(summary)
+    if uploaded is None:
+        st.info("👆 Upload a CV to begin. Try one of your own first — the model is small.")
+        st.stop()
 
-    st.divider()
-    st.subheader("Section Scores")
-    for name, section in report.sections.items():
-        render_section(name, section, feedback.get(name))
+    # Optional Job Description input (P1.2)
+    jd_text = st.text_area(
+        "📋 Optional: paste a Job Description to match against",
+        height=180,
+        placeholder=(
+            "Paste the full JD here. Include a 'Requirements' or 'Qualifications' "
+            "section for best results — the matcher pulls required skills from there."
+        ),
+    )
+    use_jd = bool(jd_text.strip())
 
-    # Download
-    out_file = save_report(report, feedback, summary, uploaded.name)
-    with open(out_file, "rb") as f:
-        st.download_button(
-            "⬇️ Download full review (JSON)",
-            data=f.read(),
-            file_name=out_file.name,
-            mime="application/json",
+    # Save upload to a temp file (PyMuPDF needs a path).
+    suffix = ".pdf" if uploaded.name.lower().endswith(".pdf") else ".docx"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tf:
+        tf.write(uploaded.read())
+        cv_path = tf.name
+
+    # C5: remember the CV filename in session state so the per-section
+    # correction form can attach it to each row of the log.
+    st.session_state["current_cv_filename"] = uploaded.name
+
+    try:
+        with st.spinner("Parsing & scoring…"):
+            # Translate UI "auto" → None (lets score_cv auto-detect).
+            # Otherwise pass the explicit role through.
+            role_arg = None if role_pref == "auto" else role_pref
+            report = score_cv(cv_path, jd_text=jd_text if use_jd else None, role=role_arg)
+
+        # Per-section LLM feedback runs concurrently (P1.3). Show progress
+        # in the spinner as each section completes.
+        progress_bar = st.progress(0.0, text="Generating LLM feedback…")
+        sections_total = len(report.sections)
+
+        def _on_section_done(name: str, completed: int, total: int) -> None:
+            progress_bar.progress(
+                completed / total,
+                text=f"🤖 {name} done ({completed}/{total})",
+            )
+
+        # Language: optional override from UI; else auto-detect from CV.
+        feedback = generate_feedback(
+            report,
+            progress_cb=_on_section_done,
+            language=language_pref if language_pref != "auto" else None,
         )
+        summary = generate_overall_summary(report, feedback)
+        progress_bar.empty()
 
-except Exception as e:
-    st.error(f"Failed to review CV: {e}")
-    st.exception(e)
-finally:
-    Path(cv_path).unlink(missing_ok=True)
+        render_score_card(report)
+        if report.jd_match is not None:
+            render_jd_match(report.jd_match)
+        render_summary(summary)
+
+        st.divider()
+        st.subheader("Section Scores")
+        for name, section in report.sections.items():
+            render_section(name, section, feedback.get(name))
+
+        # C5: aggregate HITL corrections panel (footer)
+        render_corrections_summary_panel()
+
+        # Download
+        out_file = save_report(report, feedback, summary, uploaded.name)
+        with open(out_file, "rb") as f:
+            st.download_button(
+                "⬇️ Download full review (JSON)",
+                data=f.read(),
+                file_name=out_file.name,
+                mime="application/json",
+            )
+
+    except Exception as e:
+        st.error(f"Failed to review CV: {e}")
+        st.exception(e)
+    finally:
+        Path(cv_path).unlink(missing_ok=True)
+
+
+# When run via ``streamlit run``, ``main()`` executes the UI flow.
+# When imported for tests, it returns immediately without touching Streamlit.
+main()

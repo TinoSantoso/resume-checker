@@ -58,5 +58,185 @@
       "Education": 0.0
     },
     "notes": "Strong DevOps experience, but no summary, no education, contact is thin."
+  },
+  "v_senior_pm_enterprise.pdf": {
+    "human_overall": 8.5,
+    "human_role": "pm",
+    "human_sections": {
+      "Contact": 9.0,
+      "Summary": 9.0,
+      "Experience": 9.0,
+      "Skills": 7.5,
+      "Education": 8.0
+    },
+    "notes": "Senior PM with strong metrics and progression. Skills soft (no hard tools mentioned)."
+  },
+  "v_junior_pm.pdf": {
+    "human_overall": 4.5,
+    "human_role": "pm",
+    "human_sections": {
+      "Contact": 7.0,
+      "Summary": 5.0,
+      "Experience": 4.5,
+      "Skills": 5.0,
+      "Education": 7.0
+    },
+    "notes": "Junior PM, light bullets, narrative-heavy without numbers. Promising trajectory."
+  },
+  "v_pm_metrics_driven.pdf": {
+    "human_overall": 7.5,
+    "human_role": "pm",
+    "human_sections": {
+      "Contact": 8.5,
+      "Summary": 8.0,
+      "Experience": 8.0,
+      "Skills": 8.0,
+      "Education": 7.0
+    },
+    "notes": "Metric-driven PM at fintech. Strong bullets with before/after numbers."
+  },
+  "v_pm_soft_skills.pdf": {
+    "human_overall": 4.0,
+    "human_role": "pm",
+    "human_sections": {
+      "Contact": 5.0,
+      "Summary": 4.0,
+      "Experience": 4.0,
+      "Skills": 3.0,
+      "Education": 7.0
+    },
+    "notes": "PM with all narrative bullets, no metrics, soft skills. Should score low."
+  },
+  "v_senior_sre.pdf": {
+    "human_overall": 8.5,
+    "human_role": "general",
+    "human_sections": {
+      "Contact": 9.0,
+      "Summary": 8.5,
+      "Experience": 9.0,
+      "Skills": 8.5,
+      "Education": 7.0
+    },
+    "notes": "Senior SRE, deep metrics (SLOs, MTTR), hard infra skills."
+  },
+  "v_mid_devops.pdf": {
+    "human_overall": 6.5,
+    "human_role": "general",
+    "human_sections": {
+      "Contact": 8.0,
+      "Summary": 6.0,
+      "Experience": 7.0,
+      "Skills": 7.5,
+      "Education": 7.0
+    },
+    "notes": "Mid DevOps with measurable impact. Decent but not exceptional."
+  },
+  "v_devops_no_metrics.pdf": {
+    "human_overall": 4.0,
+    "human_role": "general",
+    "human_sections": {
+      "Contact": 5.0,
+      "Summary": 0.0,
+      "Experience": 4.5,
+      "Skills": 6.5,
+      "Education": 7.0
+    },
+    "notes": "DevOps with skills but no metrics in bullets. Should drop Experience score."
+  },
+  "v_junior_data_analyst.pdf": {
+    "human_overall": 5.5,
+    "human_role": "data",
+    "human_sections": {
+      "Contact": 8.0,
+      "Summary": 6.0,
+      "Experience": 5.5,
+      "Skills": 7.0,
+      "Education": 6.5
+    },
+    "notes": "Junior data analyst with some metrics. Light experience overall."
+  },
+  "v_data_engineer.pdf": {
+    "human_overall": 8.0,
+    "human_role": "data",
+    "human_sections": {
+      "Contact": 9.0,
+      "Summary": 8.0,
+      "Experience": 8.5,
+      "Skills": 9.0,
+      "Education": 8.0
+    },
+    "notes": "Senior data engineer with deep infra metrics. Strong across the board."
+  },
+  "v_senior_frontend.pdf": {
+    "human_overall": 7.5,
+    "human_role": "swe",
+    "human_sections": {
+      "Contact": 9.0,
+      "Summary": 7.5,
+      "Experience": 8.0,
+      "Skills": 8.5,
+      "Education": 7.0
+    },
+    "notes": "Senior frontend with design system leadership. Strong metrics."
+  },
+  "v_junior_ux_designer.pdf": {
+    "human_overall": 5.0,
+    "human_role": "general",
+    "human_sections": {
+      "Contact": 7.0,
+      "Summary": 5.0,
+      "Experience": 5.0,
+      "Skills": 6.5,
+      "Education": 6.5
+    },
+    "notes": "Junior UX designer. Heuristic may under-score \u2014 soft design tools not in tech dict."
+  },
+  "v_id_strong_backend.pdf": {
+    "human_overall": 7.5,
+    "human_role": "swe",
+    "human_sections": {
+      "Contact": 8.5,
+      "Summary": 8.0,
+      "Experience": 8.0,
+      "Skills": 8.0,
+      "Education": 7.0
+    },
+    "notes": "Indonesian backend CV. Tests i18n. Strong metrics, ID verbs detected."
+  },
+  "v_id_mid_marketing.pdf": {
+    "human_overall": 5.5,
+    "human_role": "general",
+    "human_sections": {
+      "Contact": 8.0,
+      "Summary": 5.5,
+      "Experience": 6.0,
+      "Skills": 6.5,
+      "Education": 7.0
+    },
+    "notes": "ID marketing CV. Non-tech. Should still parse sections correctly."
+  },
+  "v_career_gap.pdf": {
+    "human_overall": 6.0,
+    "human_role": "swe",
+    "human_sections": {
+      "Contact": 8.0,
+      "Summary": 6.0,
+      "Experience": 6.5,
+      "Skills": 7.5,
+      "Education": 7.0
+    },
+    "notes": "Engineer with 2-year career gap. Pre-break metrics strong, recent return path clear."
+  },
+  "v_over_experienced.pdf": {
+    "human_overall": 8.0,
+    "human_role": "general",
+    "human_sections": {
+      "Contact": 8.0,
+      "Summary": 8.5,
+      "Experience": 9.0,
+      "Skills": 8.0,
+      "Education": 8.0
+    },
+    "notes": "20+ years experience, exec-level. May compress in 1-page summary; metrics strong."
   }
 }

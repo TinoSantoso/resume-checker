@@ -44,10 +44,11 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Iterable
 
 # Make `from app.scorer import ...` work whether the script is run from
 # the project root or from scripts/ directly.
@@ -167,6 +168,172 @@ def load_grades(grades_path: Path, cv_dir: Path) -> list[HumanGrade]:
 
 
 # --------------------------------------------------------------------------- #
+# Bootstrap confidence intervals (B2)
+# --------------------------------------------------------------------------- #
+
+def bootstrap_ci(
+    xs: list[float],
+    ys: list[float],
+    n_boot: int = 1000,
+    seed: int = 42,
+    alpha: float = 0.05,
+) -> tuple[float, float]:
+    """Return (lower, upper) of a percentile bootstrap CI for the MAE.
+
+    Why MAE and not Pearson?
+    ------------------------
+    Pearson CI on small samples is unstable and not the main question we
+    need answered ("how confident are we in our point estimate of the
+    error?"). The mean absolute error is the thing we actually report
+    to users, so its CI is the most actionable.
+
+    Returns (NaN, NaN) when the input is too small to bootstrap (n < 2).
+    """
+    n = len(xs)
+    if n < 2:
+        return float("nan"), float("nan")
+    if len(ys) != n:
+        raise ValueError(f"xs/ys length mismatch: {n} vs {len(ys)}")
+
+    rng = random.Random(seed)
+    samples: list[float] = []
+    indices = list(range(n))
+    for _ in range(n_boot):
+        # Resample with replacement
+        boot_idx = [rng.choice(indices) for _ in range(n)]
+        bx = [xs[i] for i in boot_idx]
+        by = [ys[i] for i in boot_idx]
+        try:
+            err = mae(bx, by)
+        except ZeroDivisionError:
+            continue
+        if not math.isnan(err):
+            samples.append(err)
+
+    if not samples:
+        return float("nan"), float("nan")
+
+    samples.sort()
+    lower_idx = max(0, int(len(samples) * (alpha / 2)))
+    upper_idx = min(len(samples) - 1, int(len(samples) * (1 - alpha / 2)))
+    return samples[lower_idx], samples[upper_idx]
+
+
+# --------------------------------------------------------------------------- #
+# Blind-spot detection (B2)
+# --------------------------------------------------------------------------- #
+
+def blind_spots(
+    section_data: dict[str, tuple[list[float], list[float]]],
+    delta_threshold: float = 1.5,
+    pearson_floor: float = 0.4,
+    min_samples: int = 3,
+) -> dict[str, dict[str, Any]]:
+    """Flag sections where the heuristic is miscalibrated.
+
+    Parameters
+    ----------
+    section_data
+        Mapping of section name -> (human_scores, auto_scores).
+    delta_threshold
+        Sections whose mean |delta| exceeds this are flagged for bias.
+    pearson_floor
+        Sections whose Pearson falls below this are flagged for ranking
+        quality (the order of CVs by score is wrong).
+    min_samples
+        Skip sections with fewer than this many samples (statistical
+        significance is meaningless below n=3).
+
+    Returns
+    -------
+    dict[section_name, {"delta": float, "pearson": float, "flag": str}]
+    """
+    flags: dict[str, dict[str, Any]] = {}
+    for section, (h_vals, a_vals) in section_data.items():
+        n = len(h_vals)
+        if n < min_samples:
+            continue
+        mean_delta = sum(ah - hh for ah, hh in zip(a_vals, h_vals)) / n
+        r = pearson(h_vals, a_vals)
+        reasons: list[str] = []
+        if abs(mean_delta) > delta_threshold:
+            reasons.append(f"|Δ|={abs(mean_delta):.2f}>{delta_threshold}")
+        if not math.isnan(r) and r < pearson_floor:
+            reasons.append(f"Pearson={r:.2f}<{pearson_floor}")
+        if reasons:
+            flags[section] = {
+                "delta": mean_delta,
+                "pearson": r,
+                "flag": "; ".join(reasons),
+                "n": n,
+            }
+    return flags
+
+
+# --------------------------------------------------------------------------- #
+# Role-grouped correlation (B2)
+# --------------------------------------------------------------------------- #
+
+def correlate_by_group(
+    items: Iterable[tuple[float, float, str]],
+    key: Callable[[tuple[float, float, str]], str],
+) -> dict[str, dict[str, Any]]:
+    """Group triples (human, auto, label) by label and compute correlation.
+
+    Returns a dict of ``{label: {"n", "pearson", "spearman", "mae"}}`` for
+    every label with at least one item. Pearson is NaN for n<2.
+    """
+    groups: dict[str, list[tuple[float, float]]] = {}
+    for it in items:
+        label = key(it) or ""
+        if not label:
+            continue
+        groups.setdefault(label, []).append((it[0], it[1]))
+
+    out: dict[str, dict[str, Any]] = {}
+    for label, pairs in groups.items():
+        if not pairs:
+            continue
+        n = len(pairs)
+        h = [p[0] for p in pairs]
+        a = [p[1] for p in pairs]
+        out[label] = {
+            "n": n,
+            "pearson": pearson(h, a) if n >= 2 else float("nan"),
+            "spearman": spearman(h, a) if n >= 2 else float("nan"),
+            "mae": mae(h, a),
+        }
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Corrections log (C5 integration)
+# --------------------------------------------------------------------------- #
+
+def load_corrections(path: Path) -> list[dict[str, Any]]:
+    """Read the JSONL corrections log produced by the HITL UI.
+
+    The log is append-only and tolerant of malformed lines (they are
+    silently skipped — never crash the validation report over a single
+    bad row).
+    """
+    if not path.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            # Skip malformed lines — never crash a validation run on
+            # one corrupt row.
+            continue
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Scoring + comparison
 # --------------------------------------------------------------------------- #
 
@@ -194,8 +361,18 @@ def score_one(grade: HumanGrade, use_role_rubrics: bool = False) -> dict[str, An
     }
 
 
-def print_report(grades: list[HumanGrade], scored: list[tuple[HumanGrade, dict]], use_role_rubrics: bool = False) -> None:
-    """Pretty-print the comparison + correlations."""
+def print_report(
+    grades: list[HumanGrade],
+    scored: list[tuple[HumanGrade, dict]],
+    use_role_rubrics: bool = False,
+    corrections: list[dict[str, Any]] | None = None,
+) -> None:
+    """Pretty-print the comparison + correlations.
+
+    B2 extensions: bootstrap CI on overall MAE, blind-spot detection
+    per section, role-grouped breakdown, and (if a corrections log
+    was loaded) a summary of HITL corrections applied.
+    """
     print()
     print("=" * 78)
     mode = "ROLE-AWARE" if use_role_rubrics else "GENERAL"
@@ -235,12 +412,16 @@ def print_report(grades: list[HumanGrade], scored: list[tuple[HumanGrade, dict]]
     p = pearson(humans, autos)
     sp = spearman(humans, autos)
     err = mae(humans, autos)
+    err_lo, err_hi = bootstrap_ci(humans, autos, n_boot=1000, seed=42)
 
     print()
     print("Overall-score correlation:")
     print(f"  Pearson:  {p:+.3f}    (1.0 = perfect, 0.0 = no relationship)")
     print(f"  Spearman: {sp:+.3f}    (rank-based, robust to outliers)")
-    print(f"  MAE:      {err:.2f} points  (mean absolute error)")
+    if math.isnan(err_lo):
+        print(f"  MAE:      {err:.2f} points  (CI: n/a, too few samples)")
+    else:
+        print(f"  MAE:      {err:.2f} points  95% CI [{err_lo:.2f}, {err_hi:.2f}]")
 
     # Per-section correlation (only for sections with >= 3 human grades)
     print()
@@ -249,6 +430,7 @@ def print_report(grades: list[HumanGrade], scored: list[tuple[HumanGrade, dict]]
     for g, _ in scored:
         section_names.update(g.human_sections.keys())
 
+    section_data: dict[str, tuple[list[float], list[float]]] = {}
     for sec in sorted(section_names):
         h_vals: list[float] = []
         a_vals: list[float] = []
@@ -259,10 +441,59 @@ def print_report(grades: list[HumanGrade], scored: list[tuple[HumanGrade, dict]]
         if len(h_vals) < 3:
             print(f"  {sec:<20} (n={len(h_vals)}, need 3+ for correlation)")
             continue
+        section_data[sec] = (h_vals, a_vals)
         sec_p = pearson(h_vals, a_vals)
         sec_err = mae(h_vals, a_vals)
+        sec_lo, sec_hi = bootstrap_ci(h_vals, a_vals, n_boot=1000, seed=42)
+        ci_str = (
+            f"CI [{sec_lo:.2f},{sec_hi:.2f}]"
+            if not math.isnan(sec_lo)
+            else "CI n/a"
+        )
         flag = "  ⚠️" if sec_p < 0.5 else ""
-        print(f"  {sec:<20} n={len(h_vals):>3}  Pearson={sec_p:+.3f}  MAE={sec_err:.2f}{flag}")
+        print(f"  {sec:<20} n={len(h_vals):>3}  Pearson={sec_p:+.3f}  MAE={sec_err:.2f} {ci_str}{flag}")
+
+    # Blind-spot detection
+    print()
+    print("Blind-spot detection (sections needing recalibration):")
+    flags = blind_spots(section_data, delta_threshold=1.5, pearson_floor=0.4)
+    if not flags:
+        print("  (none — heuristic is well-calibrated across all sections)")
+    else:
+        for sec, info in sorted(flags.items()):
+            delta = info["delta"]
+            sign = "+" if delta >= 0 else ""
+            print(
+                f"  {sec:<20} Δ={sign}{delta:.2f}  Pearson={info['pearson']:+.3f}  "
+                f"({info['flag']})"
+            )
+
+    # Role-grouped breakdown
+    print()
+    print("Role-grouped correlation:")
+    role_items = [(g.human_overall, s["auto_overall"], g.human_role) for g, s in scored]
+    role_groups = correlate_by_group(role_items, key=lambda x: x[2])
+    if not role_groups:
+        print("  (no role tags in grades)")
+    else:
+        print(f"  {'role':<12} {'n':>3}  {'Pearson':>8}  {'MAE':>6}")
+        for role, info in sorted(role_groups.items()):
+            r_str = f"{info['pearson']:+.3f}" if not math.isnan(info["pearson"]) else "  n/a "
+            print(f"  {role:<12} {info['n']:>3}  {r_str:>8}  {info['mae']:>6.2f}")
+
+    # Corrections log summary
+    if corrections:
+        print()
+        print(f"Corrections log (HITL): {len(corrections)} entries")
+        # By section
+        by_section: dict[str, list[float]] = {}
+        for c in corrections:
+            sec = c.get("section", "Unknown")
+            delta = float(c.get("human", 0)) - float(c.get("auto", 0))
+            by_section.setdefault(sec, []).append(delta)
+        for sec, deltas in sorted(by_section.items()):
+            mean_d = sum(deltas) / len(deltas)
+            print(f"  {sec:<20} n={len(deltas):>3}  mean Δ={mean_d:+.2f}")
 
     # Verdict
     print()
@@ -313,6 +544,16 @@ def main() -> int:
             "quality from detector accuracy."
         ),
     )
+    parser.add_argument(
+        "--corrections",
+        type=Path,
+        default=None,
+        help=(
+            "Optional path to a JSONL corrections log produced by the "
+            "HITL UI (C5). When provided, the report includes a summary "
+            "of corrections applied."
+        ),
+    )
     args = parser.parse_args()
 
     grades = load_grades(args.grades, args.cv_dir)
@@ -331,7 +572,12 @@ def main() -> int:
         print("No CVs scored successfully.", file=sys.stderr)
         return 1
 
-    print_report(grades, scored, use_role_rubrics=args.use_role_rubrics)
+    # Load corrections log if provided (C5 integration).
+    corrections: list[dict[str, Any]] = []
+    if args.corrections is not None:
+        corrections = load_corrections(args.corrections)
+
+    print_report(grades, scored, use_role_rubrics=args.use_role_rubrics, corrections=corrections)
 
     # CI / strict mode
     if args.strict and scored:

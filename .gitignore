@@ -41,6 +41,12 @@ data/corrections.db-journal
 data/corrections.db-wal
 data/corrections.db-shm
 
+# C5: HITL corrections log is recruiter-typed content, not source of truth.
+# The canonical labels are in grades.json. Recruiters can export and
+# re-import this log via the Streamlit UI.
+data/validation/corrections.jsonl
+data/validation/corrections.jsonl.tmp
+
 # Validation set: generated CV fixtures may contain synthetic PII
 # Uncomment if you want them gitignored:
 # data/validation/v_*.pdf
