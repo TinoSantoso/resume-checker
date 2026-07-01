@@ -262,8 +262,91 @@ def segment_sections(raw_text: str) -> Dict[str, str]:
             continue
         sections[current].append(line)
 
+    # Post-pass (audit fix-now): some PDFs put the Summary paragraph
+    # physically AFTER another section header (typically Education), so
+    # the line-by-line walk above strands it in that other section and
+    # only the trailing wrapped line ends up in Summary. If Summary is
+    # sparse and we find a prose block elsewhere that looks like Summary
+    # content, move it back to Summary.
+    _reclaim_stranded_summary(sections)
+
     # Drop empty sections, return as dict[str, str]
     return {k: "\n".join(v).strip() for k, v in sections.items() if v}
+
+
+# Patterns that identify a line as clearly NOT Summary prose.
+_BULLET_RE = re.compile(r"^\s*[•●▪\-\*]\s")
+# Date ranges to exclude: "2020 - 2025", "2020–present", "June 2025 - August 2025",
+# "Jan 2020 - Dec 2022". Covers both 4-digit-year-only and Month-YYYY variants.
+_MONTH = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)(?:[a-z]+)?"
+_DATE_RANGE_RE = re.compile(
+    rf"(?:(?:\b(19|20)\d{2})\s*[\-–—]\s*(?:\d{{4}}|present|now))"
+    rf"|(?:(?:\b{_MONTH}\b\.?\s+(?:19|20)\d{{2}})\s*[\-–—]\s*(?:(?:\b{_MONTH}\b\.?\s+(?:19|20)\d{{2}})|present|now))",
+    re.I,
+)
+
+
+def _looks_like_summary_line(line: str) -> bool:
+    """True if the line reads like Summary prose — long, no bullet, no
+    date range, no skill-list comma pattern. Used by the post-pass in
+    ``segment_sections`` to recover a Summary paragraph that was stranded
+    in a later section by PDF reading order.
+    """
+    s = line.strip()
+    if len(s) < 30:
+        return False
+    if _BULLET_RE.match(s):
+        return False
+    if _DATE_RANGE_RE.search(s):
+        return False
+    # Skill-list pattern: many short comma-separated tokens (≥4 tokens
+    # each <18 chars). Real Summary mentions skills too, so this is a
+    # weak signal.
+    if len(s.split(",")) >= 4 and all(len(t.strip()) < 18 for t in s.split(",")[1:]):
+        return False
+    return True
+
+
+def _reclaim_stranded_summary(sections: Dict[str, list[str]]) -> None:
+    """Move a contiguous prose block that looks like Summary from another
+    section back into the Summary bucket. Mutates ``sections`` in place.
+    No-op if Summary already has substantial content (≥3 non-empty lines).
+    """
+    summary = sections["Summary"]
+    # Only reclaim if Summary is clearly truncated: <100 chars total, or empty.
+    # The wrapped-paragraph bug dumps only a single ~30-char trailing line into
+    # Summary, so a short Summary IS the signal to try reclaiming from later
+    # sections. A long Summary means real content already landed there.
+    if sum(len(ln.strip()) for ln in summary) >= 100:
+        return  # Summary already has substantial content; leave it alone.
+
+    # Only scan sections that may legitimately contain a stranded Summary
+    # paragraph due to PDF reading-order quirks: Experience / Education /
+    # Other. Header is intentionally excluded — the carve-out helper handles
+    # Summary-in-Header at score_cv time, not here. Scanning Header would
+    # steal contact info or name lines on DOCX files where the "summary"
+    # prose sits inside the Header bucket by design.
+    for sec_name in ("Education", "Experience", "Other"):
+        lines = sections[sec_name]
+        # Find the longest contiguous run of Summary-like lines.
+        best_start, best_len = -1, 0
+        i = 0
+        while i < len(lines):
+            if _looks_like_summary_line(lines[i]):
+                j = i
+                while j < len(lines) and _looks_like_summary_line(lines[j]):
+                    j += 1
+                run_len = j - i
+                if run_len > best_len:
+                    best_start, best_len = i, run_len
+                i = j
+            else:
+                i += 1
+        if best_len >= 2:
+            reclaimed = lines[best_start:best_start + best_len]
+            sections["Summary"].extend(reclaimed)
+            del lines[best_start:best_start + best_len]
+            return  # one block is enough; don't over-reclaim.
 
 
 # --------------------------------------------------------------------------- #

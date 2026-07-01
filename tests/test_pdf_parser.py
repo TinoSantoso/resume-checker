@@ -8,6 +8,7 @@ import pytest
 
 from app.pdf_parser import (
     _classify_line,
+    extract_text,
     parse_cv,
     segment_sections,
 )
@@ -408,3 +409,114 @@ class TestPIIRedactionIntegration:
         ])
         result = parse_cv(docx_path)
         assert "Python" in result["Skills"]
+
+
+# --------------------------------------------------------------------------- #
+# Regression tests: segment_sections wrapped-paragraph bug (audit fix-now)
+# --------------------------------------------------------------------------- #
+
+class TestSegmentSectionsWrappedParagraph:
+    """Audit (docs/summary_carveout_audit.md): on some CVs the Summary
+    paragraph is physically located in the PDF reading order AFTER another
+    section header (typically Education), so a line-by-line segmenter
+    buckets it into the wrong section. The 'Summary' header at the top
+    of the doc then only captures the trailing wrapped line.
+
+    These tests pin down the desired behavior: a Summary header should
+    gather ALL Summary-like prose, even if it appears later in the doc.
+    """
+
+    def test_segment_sections_preserves_multiline_summary_paragraph(self):
+        """Real bleed pattern: Summary header appears at top, but the
+        Summary paragraph ALSO appears again later in the doc (after
+        Education). All prose lines of the Summary paragraph must land
+        in the Summary bucket — none in Education."""
+        text = (
+            "Tino Santoso\n"
+            "tino@gmail.com | +62 812 1234 5678\n"
+            "\n"
+            "Summary\n"
+            "products in the last 2 years.\n"
+            "Experience\n"
+            "Senior PM at Acme  Jan 2020 - Present\n"
+            "Did things.\n"
+            "Skills\n"
+            "Python, SQL\n"
+            "Education\n"
+            "B.Sc. CS — UI, 2018\n"
+            "Achieved 18% revenue growth via data-driven pricing experiments.\n"
+            "Launched 3 A/B tests across the funnel that lifted conversion by 12%.\n"
+            "Led cross-functional team of 5 engineers and 2 designers to ship in 6 weeks.\n"
+        )
+        sections = segment_sections(text)
+        assert "Summary" in sections
+        # The full Summary paragraph must be in Summary even though
+        # Education header appears BEFORE those prose lines in reading order.
+        assert "revenue growth" in sections["Summary"]
+        assert "A/B tests" in sections["Summary"]
+        assert "ship in 6 weeks" in sections["Summary"]
+        # The Summary paragraph must NOT have been stranded in Education.
+        assert "revenue growth" not in sections.get("Education", "")
+
+    def test_segment_sections_no_bleed_when_summary_first_section(self):
+        """Summary header first; the real Summary paragraph appears later
+        in the doc (after Education). Verify Summary bucket recovers the
+        full paragraph and Education bucket is NOT polluted."""
+        text = (
+            "Summary\n"
+            "products in the last 2 years.\n"
+            "Experience\n"
+            "Senior Frontend Engineer\n"
+            "• Built the seller onboarding flow; conversion 32%\n"
+            "Skills\n"
+            "React\n"
+            "Education\n"
+            "B.Sc. CS — UI, 2018\n"
+            "rina.anggraini@gmail.com\n"
+            "Senior Frontend Engineer with 6 years of experience building customer-facing\n"
+            "web apps. Specialised in React, TypeScript, and design systems. Led the design\n"
+            "system rebuild at Bukalapak; shipped 4 net-new\n"
+            "React, TypeScript, Next.js, GraphQL, Storybook\n"
+        )
+        sections = segment_sections(text)
+        assert "Summary" in sections
+        summary_body = sections["Summary"]
+        # The full Summary paragraph must be in Summary, not in Education.
+        assert "6 years of experience" in summary_body
+        assert "design systems" in summary_body
+        # Joined across line wraps; collapse newlines for assertion.
+        joined = " ".join(summary_body.split())
+        assert "design system rebuild" in joined
+        # Education must NOT contain Summary prose.
+        assert "6 years of experience" not in sections.get("Education", "")
+
+    def test_segment_sections_v_pm_metrics_driven_regression(self):
+        """Regression against the real bleeding PDF. After the fix, the
+        Summary section must contain the full paragraph (≥200 chars, ≥3
+        lines) and a substantive keyword, not just the trailing wrapped
+        line '(+18%) and retention (+12 NPS).' which the current code
+        catches alone."""
+        pdf = (
+            Path(__file__).resolve().parent.parent
+            / "data" / "validation" / "v_pm_metrics_driven.pdf"
+        )
+        if not pdf.exists():
+            pytest.skip("v_pm_metrics_driven.pdf not present in data/validation/")
+        raw = extract_text(pdf)
+        sections = segment_sections(raw)
+        assert "Summary" in sections, "Summary section must be detected"
+        summary = sections["Summary"]
+        # Real Summary paragraph is ~600 chars; pre-fix this is ~30 chars.
+        assert len(summary) >= 200, (
+            f"Summary too short ({len(summary)} chars) — wrapped-paragraph "
+            f"bug regressed. Got: {summary!r}"
+        )
+        assert len([ln for ln in summary.splitlines() if ln.strip()]) >= 3, (
+            f"Summary must have >= 3 lines, got {summary!r}"
+        )
+        # The real Summary mentions growth / pricing / revenue.
+        lowered = summary.lower()
+        assert any(
+            kw in lowered
+            for kw in ("revenue", "growth", "pricing", "launched", "ship")
+        ), f"Summary missing expected keyword. Got: {summary!r}"
