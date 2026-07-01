@@ -1,0 +1,72 @@
+[
+  {
+    "id": "D1",
+    "category": "Contact",
+    "rule": "Must include: full name, professional email, phone, LinkedIn URL. GitHub optional but valued if it shows data/ML notebooks or kaggle competition code.",
+    "weight": 1.0,
+    "rationale": "Data candidates are evaluated on LinkedIn presence and portfolio (Kaggle, GitHub, blog). GitHub is a plus, not a requirement."
+  },
+  {
+    "id": "D2",
+    "category": "Summary",
+    "rule": "Summary must specify the data discipline: data analyst, data scientist, ML engineer, data engineer, BI analyst, analytics engineer, etc. Each role has different tooling and seniority expectations.",
+    "weight": 1.5,
+    "rationale": "'Data professional' is too broad — recruiters pre-filter by discipline. Naming your discipline gets you to the right desk."
+  },
+  {
+    "id": "D3",
+    "category": "Experience",
+    "rule": "Bullets should reference datasets, pipelines, models, dashboards, or experiments. The data artifact (table, model, dashboard, notebook) should be implied or named.",
+    "weight": 2.0,
+    "rationale": "Data work is artifact-driven. Bullets without an artifact read like general 'analyst' or 'operations' work."
+  },
+  {
+    "id": "D4",
+    "category": "Experience",
+    "rule": "Quantify impact with data-specific metrics: dataset size (rows, columns, GB/TB), model performance (AUC, F1, accuracy, RMSE), query latency, cost savings, business KPIs moved (conversion, retention, revenue).",
+    "weight": 2.8,
+    "rationale": "Data roles are scored on measurable outcomes. 'Improved the model' is weak; 'improved AUC from 0.78 to 0.85, recovering $1.2M/yr in churn' is strong. Business KPIs are worth more than technical metrics."
+  },
+  {
+    "id": "D5",
+    "category": "Experience",
+    "rule": "Show the full lifecycle where possible: problem framing → data collection/cleaning → modeling/analysis → deployment → business outcome. Lifecycle bullets outperform 'built a model' bullets 3:1.",
+    "weight": 1.5,
+    "rationale": "Senior data roles span the full pipeline, not just modeling. Lifecycle bullets signal ownership and seniority."
+  },
+  {
+    "id": "D6",
+    "category": "Skills",
+    "rule": "Skills must include the data stack with category grouping: Languages (Python, R, SQL), Data (Pandas, Spark, dbt, Airflow), ML (scikit-learn, PyTorch, TensorFlow, XGBoost), BI (Tableau, Looker, Power BI), Cloud (AWS, GCP, Azure, Snowflake, BigQuery).",
+    "weight": 1.8,
+    "rationale": "Data roles have rich tool ecosystems. Missing categories (e.g. no BI tools for an analyst) signal inexperience."
+  },
+  {
+    "id": "D7",
+    "category": "Skills",
+    "rule": "SQL must be explicit. 'Database' or 'data' without SQL is a red flag — every data role uses SQL.",
+    "weight": 1.5,
+    "rationale": "SQL is the universal data tool. If SQL isn't listed, the candidate likely isn't production-grade."
+  },
+  {
+    "id": "D8",
+    "category": "Projects",
+    "rule": "Include a 'Projects' or 'Selected Work' section with: Kaggle competitions, side projects, published notebooks, blog posts, OSS contributions. Each should have a metric (model score, dataset size, blog views) where possible.",
+    "weight": 1.0,
+    "rationale": "Data portfolios matter more than for SWE because job experience is often confidential. Kaggle rank or published notebook > GPA for many roles."
+  },
+  {
+    "id": "D9",
+    "category": "Education",
+    "rule": "Quantitative degree (CS, Statistics, Math, Physics, Engineering, Economics) is strongly preferred. Master's or PhD is a plus for DS roles. List relevant coursework (statistical inference, linear algebra, ML, experimental design).",
+    "weight": 1.2,
+    "rationale": "Data roles screen on quantitative rigor. Non-quantitative backgrounds need compensating signals (Kaggle, work history, certifications)."
+  },
+  {
+    "id": "D10",
+    "category": "Length_Formatting",
+    "rule": "1-2 pages. If including a 'Publications' or 'Speaking' section, may extend to 3 pages. Use a clean Markdown-style layout; avoid dense 1-page templates that try to cram everything in 8pt font.",
+    "weight": 1.0,
+    "rationale": "Data CVs often include research, publications, or talks. Allow longer formats if justified, but the default is the same 2-page cap as other roles."
+  }
+]

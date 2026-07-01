@@ -1,0 +1,72 @@
+[
+  {
+    "id": "P1",
+    "category": "Contact",
+    "rule": "Must include: full name, professional email, phone, LinkedIn URL. Optional: personal website/blog (highly valued for PM), Twitter (if thought-leadership).",
+    "weight": 1.0,
+    "rationale": "PMs are evaluated on communication and public presence. LinkedIn + personal site/blog/Twitter are credibility multipliers."
+  },
+  {
+    "id": "P2",
+    "category": "Summary",
+    "rule": "Summary must specify the PM domain: consumer, B2B SaaS, enterprise, marketplace, fintech, growth, platform, etc. Senior PMs should also indicate platform scale or ARR band.",
+    "weight": 1.8,
+    "rationale": "PM is the broadest role in tech. Recruiters pre-filter by domain (B2B vs consumer) and scale (0→1 vs 1→10 vs 10→100). Vague summaries land in the wrong pipeline."
+  },
+  {
+    "id": "P3",
+    "category": "Experience",
+    "rule": "Each bullet should describe a 0→1 launch, growth lever, or strategic initiative — not just 'coordinated with X' or 'ran standups'. The product outcome (users, revenue, retention, NPS) should be explicit.",
+    "weight": 2.5,
+    "rationale": "PM bullets without product outcomes read like program manager / TPM work. Senior PMs ship products; junior PMs run process."
+  },
+  {
+    "id": "P4",
+    "category": "Experience",
+    "rule": "Quantify impact with business metrics: DAU/MAU growth, conversion rate, retention (D1/D7/D30), ARR impact, NPS, cost reduction, time-to-market, team size led. 'Owned the roadmap' is weak; 'grew DAU 40% in 6 months via onboarding redesign' is strong.",
+    "weight": 3.0,
+    "rationale": "PM is the role most punished by missing metrics. Bullets without numbers are treated as task lists. This is the highest-weighted rule in the rubric because it's the highest-impact gap."
+  },
+  {
+    "id": "P5",
+    "category": "Experience",
+    "rule": "Show the PM craft: problem framing, user research, hypothesis, decision, outcome. Avoid pure 'feature shipped' bullets — show the reasoning that led to the decision.",
+    "weight": 1.8,
+    "rationale": "PMs are paid to make trade-offs, not just ship features. Bullets that show the reasoning signal seniority. 'Shipped X' bullets signal IC engineer."
+  },
+  {
+    "id": "P6",
+    "category": "Experience",
+    "rule": "Highlight cross-functional work: who you partnered with (Eng, Design, Data, Marketing, Sales, Legal) and how you aligned them. Cross-functional bullets signal seniority and scope.",
+    "weight": 1.2,
+    "rationale": "PM influence is measured by who you aligned without authority. Engineering-only bullets look like TPMs."
+  },
+  {
+    "id": "P7",
+    "category": "Skills",
+    "rule": "Skills section is OPTIONAL for PM and can be soft. Tools to list if applicable: SQL (basic), Amplitude/Mixpanel/Segment, Tableau/Looker, Figma, Jira, Notion, experimentation platforms (Optimizely, LaunchDarkly). Avoid cramming in technical tools you're not strong in.",
+    "weight": 0.8,
+    "rationale": "Unlike SWE/Data, PM doesn't require a deep tools list. A short, honest skills section beats a long list of half-known tools. Pretending to know tools you don't is a common PM-CV mistake."
+  },
+  {
+    "id": "P8",
+    "category": "Education",
+    "rule": "Degree is required but field is flexible: CS, Engineering, Business, Economics, Psychology, Design all work. MBA is a plus for senior roles. List relevant PM-adjacent coursework (product management, behavioral econ, HCI, design thinking).",
+    "weight": 1.0,
+    "rationale": "PM accepts the widest range of academic backgrounds. What matters is the degree prestige and relevant PM signals (projects, internships, MBA)."
+  },
+  {
+    "id": "P9",
+    "category": "Projects",
+    "rule": "Include side projects, products shipped independently, blog posts on product thinking, conference talks, or published case studies. 'Wrote about X' or 'Spoke at Y' both count.",
+    "weight": 1.2,
+    "rationale": "PM portfolios and writing samples differentiate candidates at the margin. A blog or podcast about product thinking is a strong signal."
+  },
+  {
+    "id": "P10",
+    "category": "Length_Formatting",
+    "rule": "2 pages max, with optional 1-page summary version for referrals. Clean Markdown-style layout. Avoid the 1-page crammed template — PM bullets need room for context. A small profile photo is acceptable for PMs in some markets (US/EU), but not required.",
+    "weight": 1.0,
+    "rationale": "PM CVs benefit from slightly more space than SWE/Data. A readable 2-page format signals senior PM. Cramming everything into 1 page with 8pt font signals junior."
+  }
+]

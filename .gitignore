@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project-specific: heavy / generated / local-only
+output/
+*.log
+*.tmp
+
+# ChromaDB (rebuilt from KB on first run)
+chroma/
+chroma_db/
+*.chroma
+
+# Streamlit secrets (never commit)
+.streamlit/secrets.toml
+
+# PII redaction: local SQLite store (binary, per-machine, future: Firebase)
+data/corrections.db
+data/corrections.db-journal
+data/corrections.db-wal
+data/corrections.db-shm
+
+# Validation set: generated CV fixtures may contain synthetic PII
+# Uncomment if you want them gitignored:
+# data/validation/v_*.pdf
+
+# Keep validation grades.json (small, no PII, source of truth)
+!data/validation/grades.json

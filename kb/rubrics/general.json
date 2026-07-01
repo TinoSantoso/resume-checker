@@ -1,0 +1,72 @@
+[
+  {
+    "id": "R1",
+    "category": "Contact",
+    "rule": "Must include: full name, professional email, phone number, LinkedIn URL. Optional: city/region, portfolio/GitHub. No photo, no date of birth, no marital status.",
+    "weight": 1.0,
+    "rationale": "Recruiters and ATS systems parse contact info first. Missing email or phone means instant rejection."
+  },
+  {
+    "id": "R2",
+    "category": "Contact",
+    "rule": "Use a professional email address (firstname.lastname@gmail.com style). Avoid nicknames, numbers, or non-business handles.",
+    "weight": 0.7,
+    "rationale": "Unprofessional emails signal poor judgment to recruiters."
+  },
+  {
+    "id": "R3",
+    "category": "Summary",
+    "rule": "Should have a 2-3 line professional summary that states: target role, years of experience, and 2-3 core competencies with specialization.",
+    "weight": 1.5,
+    "rationale": "Recruiters spend ~7 seconds scanning a CV. Summary is the only section they always read first."
+  },
+  {
+    "id": "R4",
+    "category": "Experience",
+    "rule": "Each bullet must start with a strong action verb (Led, Architected, Reduced, Increased, Delivered, Shipped). Never start with 'Responsible for', 'Worked on', 'Helped'.",
+    "weight": 2.0,
+    "rationale": "Weak verbs describe duties; strong verbs describe impact. This is the #1 differentiator between junior and senior CVs."
+  },
+  {
+    "id": "R5",
+    "category": "Experience",
+    "rule": "Every bullet must contain a measurable metric: numbers (%, $, count), scale (users, requests/sec), or scope (team size, budget). If no metric exists, the bullet is weak.",
+    "weight": 2.5,
+    "rationale": "Metrics are what separate 'did X' from 'achieved Y'. CVs without metrics are task lists, not impact statements."
+  },
+  {
+    "id": "R6",
+    "category": "Experience",
+    "rule": "Experience section should be in reverse chronological order with clear role title, company, dates (month/year), and 3-6 bullets per role.",
+    "weight": 1.0,
+    "rationale": "Reverse chronological is the ATS default. Confusing order breaks parsing."
+  },
+  {
+    "id": "R7",
+    "category": "Skills",
+    "rule": "Skills must be a dedicated section with concrete, named technologies/tools (Python, AWS, PostgreSQL, Kubernetes). Avoid vague terms like 'problem-solving' or 'hard worker'.",
+    "weight": 1.5,
+    "rationale": "ATS systems keyword-match against job descriptions. Vague skills get filtered out. Named tools pass through."
+  },
+  {
+    "id": "R8",
+    "category": "Skills",
+    "rule": "Group skills by category (Languages, Frameworks, Tools, Cloud, Databases). Avoid one massive undifferentiated list.",
+    "weight": 0.7,
+    "rationale": "Grouping shows depth, not just breadth. Recruiters scan by category."
+  },
+  {
+    "id": "R9",
+    "category": "Education",
+    "rule": "Include degree, institution, graduation year, and relevant coursework or honors only for entry-level or if highly relevant. Omit high school if you have a degree.",
+    "weight": 0.7,
+    "rationale": "Education section should be concise. Recency matters for coursework; irrelevance should be cut."
+  },
+  {
+    "id": "R10",
+    "category": "Length_Formatting",
+    "rule": "Total length: 1 page for under 7 years experience, 2 pages otherwise. Use consistent date format, consistent bullet style, single readable font, no tables/columns/graphics that break ATS parsing.",
+    "weight": 1.0,
+    "rationale": "ATS parsers fail on complex layouts. Two-page max respects recruiter time. Consistency signals professionalism."
+  }
+]

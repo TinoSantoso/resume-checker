@@ -1,0 +1,72 @@
+[
+  {
+    "id": "S1",
+    "category": "Contact",
+    "rule": "Must include: full name, professional email, phone, LinkedIn URL, and GitHub URL. GitHub is not optional for SWE — it shows real code.",
+    "weight": 1.2,
+    "rationale": "SWE recruiters verify GitHub before scheduling interviews. No GitHub = -50% callback rate."
+  },
+  {
+    "id": "S2",
+    "category": "Summary",
+    "rule": "Summary must name the SWE specialty: backend, frontend, full-stack, mobile, platform, infra, embedded, etc. 'Software engineer' alone is too broad.",
+    "weight": 1.5,
+    "rationale": "Specialty signals seniority band and the kinds of systems the candidate has shipped. Vague summaries get filtered by specialty-specific ATS rules."
+  },
+  {
+    "id": "S3",
+    "category": "Experience",
+    "rule": "Each bullet should describe a system, feature, or refactor — not a meeting or status update. The artifact (code, service, library) should be implied or named.",
+    "weight": 2.2,
+    "rationale": "SWE bullets without an artifact read like PM or QA work. The strongest SWE CVs make the technical work scannable: 'built X', 'shipped Y', 'migrated Z'."
+  },
+  {
+    "id": "S4",
+    "category": "Experience",
+    "rule": "Include scale metrics where they exist: requests/sec, p99 latency, concurrent users, data volume, lines of code, or system uptime. If you worked on a system that handled X, say X.",
+    "weight": 2.5,
+    "rationale": "Scale is the #1 SWE credibility signal. A 'service' that nobody knows the size of is suspicious at senior level. Scale metrics are also what separate IC from staff/principal."
+  },
+  {
+    "id": "S5",
+    "category": "Experience",
+    "rule": "Show progression: each role should have more scope, scale, or impact than the previous one. Junior bullets = features; senior bullets = systems or org-wide changes.",
+    "weight": 1.5,
+    "rationale": "Recruiters scan CVs top-down for the trajectory curve. Flat trajectories signal mid-level plateau."
+  },
+  {
+    "id": "S6",
+    "category": "Skills",
+    "rule": "Skills must be organized by category with at least these groups: Languages, Frameworks, Databases, Infrastructure/Cloud. Each group should have 3+ named tools.",
+    "weight": 1.8,
+    "rationale": "ATS keyword matchers run category-aware. An undifferentiated skill list misses matches and signals a junior CV."
+  },
+  {
+    "id": "S7",
+    "category": "Skills",
+    "rule": "List specific versions, libraries, or tools you used in production — not just languages. 'Wrote Python' is weak; 'Python 3.11, FastAPI, SQLAlchemy, Celery, Redis' is strong.",
+    "weight": 1.2,
+    "rationale": "Senior SWE interviews probe specific stacks. Naming tools shows you actually shipped, not just 'used'."
+  },
+  {
+    "id": "S8",
+    "category": "Projects",
+    "rule": "If experience is thin (early-career or career-switching), include a 'Projects' section with side projects, OSS contributions, or hackathon work. Each project should have: what you built, the stack, and a link (GitHub, demo, blog).",
+    "weight": 1.0,
+    "rationale": "Projects compensate for missing industry experience. Without them, junior SWEs look identical to bootcamp grads."
+  },
+  {
+    "id": "S9",
+    "category": "Education",
+    "rule": "CS / Software Engineering degree is preferred. If non-CS, list relevant coursework (algorithms, OS, distributed systems, ML) or bootcamp / certifications. Bootcamps are acceptable if paired with project work.",
+    "weight": 0.7,
+    "rationale": "CS fundamentals matter for SWE screens (algorithms, data structures). Non-CS candidates need to demonstrate these signals some other way."
+  },
+  {
+    "id": "S10",
+    "category": "Length_Formatting",
+    "rule": "2 pages max at senior level. Use a monospace-friendly font for code samples (JetBrains Mono, Fira Code) if you include a 'Code' section. Avoid Word/Google Docs column layouts — they break ATS parsing.",
+    "weight": 1.0,
+    "rationale": "ATS parsers fail on visual SWE templates with sidebars, rating bars, and 2-column layouts. The strongest SWE CVs use simple Markdown-style layouts that any parser handles."
+  }
+]

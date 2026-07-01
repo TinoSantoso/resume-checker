@@ -1,0 +1,62 @@
+{
+  "v_strong_ml.pdf": {
+    "human_overall": 8.5,
+    "human_role": "data",
+    "human_sections": {
+      "Contact": 9.0,
+      "Summary": 8.5,
+      "Experience": 9.0,
+      "Skills": 9.0,
+      "Education": 9.5
+    },
+    "notes": "Strong ML with metrics, 2 roles, 4 jobs total. MLOps keywords present."
+  },
+  "v_weak_recent_grad.pdf": {
+    "human_overall": 2.5,
+    "human_role": "swe",
+    "human_sections": {
+      "Contact": 4.0,
+      "Summary": 0.0,
+      "Experience": 2.5,
+      "Skills": 1.0,
+      "Education": 5.0
+    },
+    "notes": "Weak verbs everywhere, no metrics, no summary, soft skills as 'Skills'."
+  },
+  "v_medium_backend.pdf": {
+    "human_overall": 5.5,
+    "human_role": "swe",
+    "human_sections": {
+      "Contact": 7.0,
+      "Summary": 4.0,
+      "Experience": 6.0,
+      "Skills": 7.0,
+      "Education": 6.0
+    },
+    "notes": "Decent bullets with some metrics, but only 2 roles, summary is thin."
+  },
+  "v_good_pm.pdf": {
+    "human_overall": 8.0,
+    "human_role": "pm",
+    "human_sections": {
+      "Contact": 7.0,
+      "Summary": 9.0,
+      "Experience": 8.5,
+      "Skills": 6.0,
+      "Education": 8.5
+    },
+    "notes": "Strong PM with metrics + 0-to-1 story. Skills section soft (no hard tools)."
+  },
+  "v_mixed_lean.pdf": {
+    "human_overall": 4.5,
+    "human_role": "swe",
+    "human_sections": {
+      "Contact": 4.0,
+      "Summary": 0.0,
+      "Experience": 7.0,
+      "Skills": 6.0,
+      "Education": 0.0
+    },
+    "notes": "Strong DevOps experience, but no summary, no education, contact is thin."
+  }
+}
