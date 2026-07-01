@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: pytest (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        run: |
+          python -m pytest --tb=short -q --color=yes
+
+  lint:
+    name: Smoke checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Bytecode compile all modules
+        run: |
+          python -m compileall -q app/ scripts/ tests/
+      - name: Validate __init__.py + key entry points import
+        run: |
+          python -c "import app; from app.scorer import score_cv; from app.feedback import generate_feedback; from app.role_detector import detect_role_from_sections; from app.skill_dictionary import extract_skills; from app.health import check_ollama_health; from app.redactor import redact; from app.i18n import detect_language; print('all key imports OK')"

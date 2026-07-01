@@ -1,18 +1,31 @@
-# CV Reviewer — Local RAG
+# Resume Checker/Reviewer — Local RAG
 
-Simple CV/Resume reviewer running fully on local Ollama models.
+[![CI](https://github.com/TinoSantoso/resume-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/TinoSantoso/resume-checker/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-376%20passed-brightgreen)](https://github.com/TinoSantoso/resume-checker)
+[![Python](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![Ollama](https://img.shields.io/badge/ollama-qwen2.5:3b-orange)](https://ollama.com/)
+[![Code style: PEP 8](https://img.shields.io/badge/code%20style-PEP%208-blue)](https://peps.python.org/pep-0008/)
+
+> Local-first CV/Resume reviewer running fully on Ollama — no cloud, no data leak, no API keys.
+> Streamlit UI · ChromaDB RAG · PyMuPDF + python-docx · Role-aware scoring (SWE/Data/PM) · Bilingual ID/EN · PII-redacted by default.
+
+[Why?](#why-local-first) · [Quick start](#quick-start) · [Architecture](#architecture) · [Validation](#validation) · [Limitations](#limitations) · [Contributing](#contributing)
 
 ## Architecture
 
+All processing stays local — no outbound calls except to `localhost:11434` (your own Ollama).
+
 ```
-PDF CV → PyMuPDF (extract) → Section segmentation → Heuristic scoring
-                                                          ↓
-                                              RAG retrieval (ChromaDB + nomic-embed-text)
-                                                          ↓
-                                              LLM feedback (qwen2.5:3b)
-                                                          ↓
-                                              Streamlit UI + JSON export
+PDF/DOCX CV → PyMuPDF / python-docx → Section segmentation → Heuristic scoring
+                                                                ↓
+                                                RAG retrieval (ChromaDB + nomic-embed-text)
+                                                                ↓
+                                                LLM feedback (qwen2.5:3b, parallel)
+                                                                ↓
+                                                Streamlit UI + JSON export
 ```
+All processing stays local — no outbound calls except to `localhost:11434` (your own Ollama).
 
 ## Stack
 
@@ -59,37 +72,36 @@ length, ATS-hostile patterns.
 LLM is **not** used for scoring — only for narrative feedback grounded in
 retrieved rubric rules.
 
-## Run
+## Quick start
 
 ```bash
-# Activate venv
-source ~/projects/cv-reviewer/.venv/bin/activate
+# 1. Activate venv (already created in .venv/)
+source .venv/bin/activate
 
-# Make sure ollama is serving
+# 2. Make sure Ollama is serving
 ollama serve &
 ollama pull qwen2.5:3b nomic-embed-text
 
-# Build index (one-time)
+# 3. Build RAG index (one-time, ~30s)
 python3 -m app.rag
 
-# Generate sample CVs (optional, for testing)
-python3 scripts/gen_samples.py
-
-# Run app
+# 4. Run the app
 streamlit run app/streamlit_app.py --server.port 8501
 ```
 
-Then open `http://localhost:8501`.
+Then open <http://localhost:8501>. Upload a PDF/DOCX, see section scores + role-aware rubric feedback in ~30s.
 
-## CLI quick test
+### CLI quick test
 
 ```bash
-# Score only (fast, deterministic)
+# Score only (fast, deterministic, no LLM call)
 python3 -m app.scorer data/sample_strong.pdf
 
-# Score + LLM feedback (~90s on CPU)
+# Score + LLM narrative feedback (~30s on CPU)
 python3 -m app.feedback data/sample_medium.pdf
 ```
+
+## Why local-first?
 
 ## Sample test results
 
@@ -228,16 +240,50 @@ cv-reviewer/
 │   └── validation/         # Validation set (graded by hand, with human_role)
 │       ├── grades.json
 │       └── v_*.pdf
-└── tests/
-    ├── test_pdf_parser.py
-    ├── test_layout.py
-    ├── test_scorer.py
-    ├── test_feedback.py
-    ├── test_matcher.py
-    ├── test_jd_parser.py
-    ├── test_i18n.py
-    ├── test_weights.py     # Per-role weights + rubric registry
-    ├── test_role_detector.py  # SWE/Data/PM classifier (v0.4)
-    ├── test_role_aware_scoring.py  # End-to-end role scoring (v0.4)
-    └── test_validation.py
+├── tests/
+│   ├── test_pdf_parser.py
+│   ├── test_layout.py
+│   ├── test_scorer.py
+│   ├── test_feedback.py
+│   ├── test_matcher.py
+│   ├── test_jd_parser.py
+│   ├── test_i18n.py
+│   ├── test_weights.py     # Per-role weights + rubric registry
+│   ├── test_role_detector.py  # SWE/Data/PM classifier (v0.4)
+│   ├── test_role_aware_scoring.py  # End-to-end role scoring (v0.4)
+│   ├── test_validation.py
+│   ├── test_redactor.py       # C1 PII redaction
+│   ├── test_health.py         # C2 Ollama health probe
+│   └── test_skill_dictionary.py # B1 skill aliases + categories
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # GitHub Actions: pytest on every push
+├── .gitignore                 # excludes .venv (982MB), __pycache__, corrections.db
+└── LICENSE                    # MIT
 ```
+
+## Contributing
+
+Issues and PRs welcome. The codebase follows PEP 8 with type hints; tests are
+required for any non-trivial change.
+
+```bash
+# Setup
+git clone git@github.com:TinoSantoso/resume-checker.git
+cd resume-checker
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run tests (376 expected)
+python3 -m pytest -q
+
+# Add a role variant (e.g. DevOps)
+# 1. Create kb/rubrics/devops.json (10 rules, IDs prefixed D-O)
+# 2. Add signals to app/role_detector.py
+# 3. Regenerate weights: python3 scripts/build_weights.py
+# 4. Add tests in tests/test_role_detector.py
+# 5. Open PR — CI will run pytest
+```
+
+See `kb/rubrics/general.json` for the rubric schema and
+`app/role_detector.py:36-80` for the role-signal pattern.
