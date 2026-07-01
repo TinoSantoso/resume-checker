@@ -10,7 +10,7 @@
     "id": "S2",
     "category": "Summary",
     "rule": "Summary must name the SWE specialty: backend, frontend, full-stack, mobile, platform, infra, embedded, etc. 'Software engineer' alone is too broad.",
-    "weight": 1.5,
+    "weight": 2.0,
     "rationale": "Specialty signals seniority band and the kinds of systems the candidate has shipped. Vague summaries get filtered by specialty-specific ATS rules."
   },
   {

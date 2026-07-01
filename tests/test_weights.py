@@ -117,14 +117,21 @@ class TestPerRoleWeights:
             )
 
     def test_pm_deemphasizes_skills(self):
-        """Per the PM rubric, soft skills are OK — Skills gets the lowest weight."""
-        pm_skills = SECTION_WEIGHTS_BY_ROLE["pm"]["Skills"]
-        for sec, w in SECTION_WEIGHTS_BY_ROLE["pm"].items():
-            if sec == "Skills":
-                continue
-            assert pm_skills <= w, (
-                f"PM Skills ({pm_skills}) should be the lowest, but {sec} = {w}"
-            )
+        """Per the PM rubric, soft skills are *less* weighted than core
+        sections (Experience, Summary) even after the v2 weight re-tune
+        bumped Skills from 0.052 -> 0.112 to address PM under-scoring.
+
+        Specifically: Skills must not exceed Summary, and Experience must
+        remain heavier than Skills (Experience is still the dominant PM
+        signal). This guards against accidentally over-correcting."""
+        pm = SECTION_WEIGHTS_BY_ROLE["pm"]
+        assert pm["Experience"] > pm["Skills"], (
+            f"PM Experience ({pm['Experience']}) should still be heavier than "
+            f"Skills ({pm['Skills']})"
+        )
+        assert pm["Skills"] <= pm["Summary"], (
+            f"PM Skills ({pm['Skills']}) should not exceed Summary ({pm['Summary']})"
+        )
 
     def test_swe_data_emphasize_skills(self):
         """SWE and Data both need named tools — Skills weight should be high."""

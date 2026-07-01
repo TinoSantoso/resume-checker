@@ -24,7 +24,7 @@
     "id": "P4",
     "category": "Experience",
     "rule": "Quantify impact with business metrics: DAU/MAU growth, conversion rate, retention (D1/D7/D30), ARR impact, NPS, cost reduction, time-to-market, team size led. 'Owned the roadmap' is weak; 'grew DAU 40% in 6 months via onboarding redesign' is strong.",
-    "weight": 3.0,
+    "weight": 2.7,
     "rationale": "PM is the role most punished by missing metrics. Bullets without numbers are treated as task lists. This is the highest-weighted rule in the rubric because it's the highest-impact gap."
   },
   {
@@ -45,7 +45,7 @@
     "id": "P7",
     "category": "Skills",
     "rule": "Skills section is OPTIONAL for PM and can be soft. Tools to list if applicable: SQL (basic), Amplitude/Mixpanel/Segment, Tableau/Looker, Figma, Jira, Notion, experimentation platforms (Optimizely, LaunchDarkly). Avoid cramming in technical tools you're not strong in.",
-    "weight": 0.8,
+    "weight": 1.8,
     "rationale": "Unlike SWE/Data, PM doesn't require a deep tools list. A short, honest skills section beats a long list of half-known tools. Pretending to know tools you don't is a common PM-CV mistake."
   },
   {
