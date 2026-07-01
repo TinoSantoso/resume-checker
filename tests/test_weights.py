@@ -22,6 +22,23 @@ class TestWeightsIntegrity:
     def test_rubric_dir_exists(self):
         assert Path(RUBRIC_DIR).exists(), f"rubric dir missing at {RUBRIC_DIR}"
 
+    def test_rubric_dir_portable_across_cwd(self):
+        """RUBRIC_DIR must resolve correctly even when the caller's CWD
+        differs from the project root — critical for CI runners where
+        pytest may be invoked from a different working directory than
+        the source tree."""
+        import os
+        import subprocess
+        import sys
+        from app.weights import RUBRIC_DIR as weights_dir
+        # Resolve via __file__-relative computation that weights.py uses
+        from pathlib import Path as _P
+        expected = (_P(__file__).resolve().parent.parent / "kb" / "rubrics")
+        assert _P(weights_dir).resolve() == expected, (
+            f"RUBRIC_DIR {weights_dir!r} does not resolve to project root "
+            f"({expected}). CI will fail when cwd != project root."
+        )
+
     def test_six_canonical_sections_present_in_default(self):
         for sec in ["Contact", "Summary", "Experience", "Skills", "Education", "Length_Formatting"]:
             assert sec in SECTION_WEIGHTS, f"section '{sec}' missing from default weights"

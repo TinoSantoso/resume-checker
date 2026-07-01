@@ -73,8 +73,20 @@ def render_module(
     lines.append("from __future__ import annotations")
     lines.append("")
     lines.append("from typing import Dict")
+    lines.append("from pathlib import Path")
     lines.append("")
-    lines.append(f"RUBRIC_DIR: str = {rubric_dir.as_posix()!r}")
+    # Emit path resolved relative to the *generated module's* location
+    # (app/weights.py -> project root -> kb/rubrics). This makes the
+    # module portable: it works on dev laptops, CI runners, and Docker
+    # containers regardless of CWD, because the path is anchored to the
+    # module file itself, not the caller's working directory.
+    rel_dir = (rubric_dir.resolve().relative_to(_PROJECT_ROOT.resolve())
+               if rubric_dir.is_absolute()
+               else rubric_dir)
+    lines.append(
+        f"RUBRIC_DIR: Path = Path(__file__).resolve().parent.parent / "
+        f"{rel_dir.as_posix()!r}"
+    )
     lines.append(f"SUPPORTED_ROLES: tuple[str, ...] = {list(weights_by_role.keys())!r}")
     lines.append("")
 

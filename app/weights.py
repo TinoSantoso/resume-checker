@@ -12,8 +12,9 @@ backward compatibility).
 from __future__ import annotations
 
 from typing import Dict
+from pathlib import Path
 
-RUBRIC_DIR: str = '/mnt/d/Development/resume-reviewer/kb/rubrics'
+RUBRIC_DIR: Path = Path(__file__).resolve().parent.parent / 'kb/rubrics'
 SUPPORTED_ROLES: tuple[str, ...] = ['general', 'swe', 'data', 'pm']
 
 # Per-role, per-section normalized weights (sum to 1.0 within each role).
