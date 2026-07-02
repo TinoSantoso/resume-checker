@@ -443,7 +443,6 @@ def _score_skills(text: str) -> SectionScore:
     for skill in canonical_found:
         cat = _cat(skill) or "Other"
         by_category[cat] = by_category.get(cat, 0) + 1
-    canonical_count = len(canonical_found)
 
     if n == 0:
         s.score = 1
@@ -504,6 +503,88 @@ def _score_skills(text: str) -> SectionScore:
     if re.search(r"\b(languages|frameworks|tools|databases|cloud|platforms)\b", text, re.I):
         s.evidence.append("Skills appear to be grouped by category.")
         s.score = min(10, s.score + 1)
+
+    s.score = round(max(0, min(10, s.score)), 1)
+    return s
+
+
+def _score_projects(text: str) -> SectionScore:
+    """Score the optional Projects section.
+
+    Same shape as ``_score_experience`` minus the role-header detection:
+    projects don't typically list employer + date ranges, just bullets that
+    describe what was built. Used when SWE/Data/PM rubrics add a Projects
+    weight — without this scorer the Projects section content was silently
+    dropped from the report.
+    """
+    s = SectionScore(name="Projects")
+    if not text.strip():
+        s.score = 0
+        s.issues.append("No projects section found.")
+        return s
+
+    has_bullets = bool(re.search(r"^\s*([-*•●▪]|\d+[.)])\s+", text, re.M))
+    if has_bullets:
+        lines = text.splitlines()
+        bullets = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            cleaned = re.sub(r"^([-*•●▪]|\d+[.)])\s*", "", line)
+            if len(cleaned.split()) >= 3:
+                bullets.append(cleaned)
+        n_bullets = len(bullets)
+    else:
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        bullets = [s.strip() for s in sentences if len(s.strip().split()) >= 6]
+        n_bullets = len(bullets)
+
+    if n_bullets == 0:
+        s.score = 1
+        s.issues.append("No project bullets or statements detected.")
+        return s
+
+    from .i18n import combined_strong_verbs, combined_weak_verbs
+    strong_verbs = combined_strong_verbs()
+    weak_verbs = combined_weak_verbs()
+
+    weak_hits = 0
+    strong_hits = 0
+    for b in bullets:
+        low = b.lower()
+        if any(low.startswith(w) for w in weak_verbs) or any(w in low.split()[:3] for w in weak_verbs):
+            weak_hits += 1
+        first_word = re.split(r"\s+", low.strip(), maxsplit=1)[0]
+        if first_word.rstrip(".,;:") in strong_verbs:
+            strong_hits += 1
+
+    verb_ratio = strong_hits / max(1, n_bullets)
+    if verb_ratio >= 0.5:
+        s.score = 6
+        s.evidence.append(f"{strong_hits}/{n_bullets} project bullets start with strong verbs.")
+    elif verb_ratio >= 0.25:
+        s.score = 4
+    else:
+        s.score = 2
+        s.issues.append("Most project bullets lack strong action verbs.")
+
+    metric_hits = sum(1 for b in bullets if METRIC_RE.search(b))
+    metric_ratio = metric_hits / max(1, n_bullets)
+    if metric_ratio >= 0.4:
+        s.score += 2
+        s.evidence.append(f"{metric_hits}/{n_bullets} project bullets include metrics.")
+    elif metric_ratio >= 0.2:
+        s.score += 1
+    else:
+        s.issues.append("Add metrics (%, $, scale) to project bullets — what was the impact?")
+
+    if not has_bullets:
+        s.score = max(0, s.score - 2)
+        s.issues.append("Projects written in paragraph format. Use bullets — one line per project.")
+
+    if weak_hits:
+        s.issues.append(f"{weak_hits} project bullet(s) start with weak phrases.")
 
     s.score = round(max(0, min(10, s.score)), 1)
     return s
@@ -664,6 +745,7 @@ def score_cv(
         "Experience": _score_experience(sections.get("Experience", "")),
         "Skills": _score_skills(sections.get("Skills", "")),
         "Education": _score_education(sections.get("Education", "")),
+        "Projects": _score_projects(sections.get("Projects", "")),
         "Length_Formatting": _score_length_formatting(raw),
     }
 

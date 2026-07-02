@@ -10,11 +10,13 @@ from app.scorer import (
     _score_education,
     _score_experience,
     _score_length_formatting,
+    _score_projects,
     _score_skills,
     _score_summary,
     grade_for,
     score_cv,
 )
+from app.weights import SECTION_WEIGHTS_BY_ROLE
 
 
 # --------------------------------------------------------------------------- #
@@ -629,3 +631,96 @@ class TestSkillsScoringWithDictionary:
         ev = " ".join(rep.evidence)
         assert "After alias normalization" in ev
         assert "1 Language" in ev
+
+
+class TestProjectsScoring:
+    """Regression for Projects section that the SWE/Data/PM rubrics weight
+    but the scorer was silently dropping. Before the fix, a CV with a
+    Projects block contributed zero to the overall — even when the role
+    rubric said Projects = 6.6-7.5% of the score.
+    """
+
+    def test_empty_projects_scores_zero(self):
+        s = _score_projects("")
+        assert s.score == 0
+        assert any("projects" in i.lower() for i in s.issues)
+
+    def test_solid_bullet_projects_with_metrics(self):
+        text = (
+            "- Built Kubernetes operator in Go serving 200+ CRDs, reduced deploy time by 60%\n"
+            "- Architected event-driven pipeline on Kafka handling 50k msgs/sec at p99 40ms\n"
+            "- Shipped React dashboard used by 300+ internal users daily"
+        )
+        s = _score_projects(text)
+        assert s.score >= 6, f"expected solid score for bullets+metrics, got {s.score}"
+
+    def test_paragraph_projects_penalized(self):
+        text = (
+            "I worked on a Kubernetes operator for our platform team. "
+            "I also helped build a Kafka pipeline for streaming events. "
+            "I built a small React dashboard for the ops folks."
+        )
+        s = _score_projects(text)
+        # Weak verbs + no metrics + no bullets → low score.
+        assert s.score <= 4, f"expected low score for weak paragraph, got {s.score}"
+        assert any("paragraph" in i.lower() for i in s.issues)
+
+    def test_projects_contributes_to_overall_when_role_has_projects_weight(self):
+        """Integration: the SWE/Data/PM rubrics weight Projects 6.6-7.5%.
+        Verify that adding a Projects section with content moves the
+        overall score vs. the same CV with empty Projects.
+        """
+        from app.scorer import _score_skills, _score_contact, _score_summary
+        from app.scorer import _score_experience, _score_education
+        from app.scorer import _score_length_formatting
+
+        contact_text = "tino@gmail.com | +62 812 1234 | linkedin.com/in/tino"
+        summary_text = (
+            "Senior Software Engineer with 8 years building distributed "
+            "systems in Python and Go. Specialized in cloud-native architectures."
+        )
+        experience_text = (
+            "- Led migration of monolith to microservices on Kubernetes, "
+            "reduced p99 latency by 45% for 2M daily users\n"
+            "- Architected data pipeline on Kafka processing 50k msgs/sec"
+        )
+        skills_text = "Python, Go, Kubernetes, AWS, Kafka, PostgreSQL, Docker, Terraform"
+        education_text = "B.S. Computer Science, University of Indonesia, 2018"
+
+        good_projects = (
+            "- Built Kubernetes operator in Go serving 200+ CRDs, reduced deploy time by 60%\n"
+            "- Shipped React dashboard used by 300+ internal users daily"
+        )
+
+        def overall_for(role: str, projects_text: str) -> float:
+            scores = {
+                "Contact": _score_contact(contact_text, ""),
+                "Summary": _score_summary(summary_text),
+                "Experience": _score_experience(experience_text),
+                "Skills": _score_skills(skills_text),
+                "Education": _score_education(education_text),
+                "Projects": _score_projects(projects_text),
+                "Length_Formatting": _score_length_formatting(
+                    contact_text + summary_text + experience_text + skills_text + education_text + projects_text
+                ),
+            }
+            weights = SECTION_WEIGHTS_BY_ROLE[role]
+            total_w = sum(weights.get(k, 0.0) for k in scores)
+            return sum(scores[k].score * weights.get(k, 0.0) for k in scores) / total_w
+
+        # SWE: Projects weight = 0.0662. Adding a strong Projects block
+        # must move the overall score by at least 0.3 (the project scorer
+        # can produce a delta of up to ~10 * 0.0662 = 0.66).
+        swe_no_proj = overall_for("swe", "")
+        swe_with_proj = overall_for("swe", good_projects)
+        assert swe_with_proj - swe_no_proj >= 0.3, (
+            f"SWE overall should rise with Projects: {swe_no_proj} -> {swe_with_proj}"
+        )
+
+        # General role has no Projects weight — adding Projects shouldn't move overall.
+        gen_no_proj = overall_for("general", "")
+        gen_with_proj = overall_for("general", good_projects)
+        assert abs(gen_with_proj - gen_no_proj) < 1e-6, (
+            f"General overall must be invariant to Projects (no weight), "
+            f"but moved {gen_no_proj} -> {gen_with_proj}"
+        )
