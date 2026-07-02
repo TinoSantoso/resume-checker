@@ -38,6 +38,11 @@ class ParsedCV:
 
     sections: Dict[str, str] = field(default_factory=dict)
     pii_map: Dict[str, str] = field(default_factory=dict)
+    # Raw (unredacted) Header + Contact + Links text. Used by Contact
+    # scoring only — see ``app.scorer._score_contact``. Empty when
+    # ``redact_pii=False`` (nothing to unmask) or when those sections
+    # are absent from the parsed doc.
+    raw_contact: str = ""
 
     def __iter__(self):
         return iter(self.sections.items())
@@ -418,7 +423,7 @@ def parse_cv(
     cv_path: Union[str, Path],
     *,
     redact_pii: bool = True,
-) -> Union[ParsedCV, Dict[str, str]]:
+) -> ParsedCV:
     """One-shot helper: extract + segment. Supports PDF and DOCX.
 
     Args:
@@ -448,8 +453,13 @@ def parse_cv(
     sections = segment_sections(text)
 
     if not redact_pii:
-        # Return a ParsedCV with empty map (no unmask possible).
-        return ParsedCV(sections=sections, pii_map={})
+        # Return a ParsedCV with empty map (no unmask possible). raw_contact
+        # is the same as the unredacted Header+Contact+Links+Summary since
+        # nothing was stripped — scorer can use either.
+        raw_contact = "\n".join(
+            sections.get(name, "") for name in ("Header", "Contact", "Links", "Summary")
+        )
+        return ParsedCV(sections=sections, pii_map={}, raw_contact=raw_contact)
 
     # Redact per-section so the mapping accumulates correctly across the
     # whole document (placeholders stay globally unique, not per-section).
@@ -462,7 +472,20 @@ def parse_cv(
     # contain PII so the boundaries are preserved.
     redacted_sections = segment_sections(redacted_text)
 
-    return ParsedCV(sections=redacted_sections, pii_map=pii_map)
+    # Stash raw Header + Contact + Links for Contact scoring. The
+    # scorer runs EMAIL/PHONE/LINKEDIN regexes that don't match the
+    # [EMAIL_1] / [PHONE_1] / [LINKEDIN_1] placeholders, so it needs
+    # pre-redaction text to detect anything. Downstream consumers still
+    # get the redacted ``sections`` dict, so PII safety is preserved.
+    raw_contact = "\n".join(
+        sections.get(name, "") for name in ("Header", "Contact", "Links", "Summary")
+    )
+
+    return ParsedCV(
+        sections=redacted_sections,
+        pii_map=pii_map,
+        raw_contact=raw_contact,
+    )
 
 
 if __name__ == "__main__":

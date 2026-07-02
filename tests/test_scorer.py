@@ -29,6 +29,33 @@ class TestContactScoring:
         assert s.score == 0
         assert any("contact" in i.lower() for i in s.issues)
 
+    def test_score_cv_contact_uses_raw_not_redacted(self):
+        """Regression for Contact MAE 5.85: score_cv() passed the REDACTED
+        Header/Contact text to _score_contact, where EMAIL_RE etc. can't
+        match the [EMAIL_1] / [PHONE_1] placeholders, so Contact scored 0.
+        The fix routes raw pre-redaction Header+Contact+Links through
+        ParsedCV.raw_contact. Verify on a CV with real email + phone."""
+        from pathlib import Path
+        pdf = Path(__file__).resolve().parent.parent / "data" / "validation" / "v_strong_ml.pdf"
+        if not pdf.exists():
+            pytest.skip("v_strong_ml.pdf not present")
+        rep = score_cv(pdf)
+        contact = rep.sections.get("Contact")
+        assert contact is not None
+        # With real email + phone + linkedin visible, Contact should land
+        # in the 6-9 range. Pre-fix this was 0 because of placeholder drift.
+        assert contact.score >= 6.0, (
+            f"Contact scored {contact.score} — still hitting placeholders? "
+            f"evidence={contact.evidence!r} issues={contact.issues!r}"
+        )
+        # And the redacted sections dict must NOT have leaked PII.
+        from app.pdf_parser import parse_cv
+        parsed = parse_cv(pdf)
+        for sec_name, sec_text in parsed.sections.items():
+            assert "[EMAIL_" not in sec_text or sec_name == "Header", (
+                f"Section {sec_name} leaked redacted placeholder text"
+            )
+
     def test_email_only(self):
         s = _score_contact("tino.santoso@gmail.com", "")
         assert s.score == 3

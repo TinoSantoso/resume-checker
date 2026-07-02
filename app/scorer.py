@@ -736,8 +736,12 @@ def score_cv(
             sections["Header"] = new_header
 
     # Fallback 2: Links section merged into Contact scoring if present.
-    links_text = sections.get("Links", "")
-    contact_text = (sections.get("Contact", "") + "\n" + sections.get("Header", "") + "\n" + links_text)
+    # Use raw (pre-redaction) Header + Contact + Links so EMAIL/PHONE/
+    # LINKEDIN regexes actually match — placeholders like [EMAIL_1] don't
+    # match the patterns and Contact was scoring 0 on every redacted CV.
+    # PII safety preserved: raw_contact is only used here, never logged or
+    # returned downstream.
+    contact_text = sections.raw_contact
 
     scores: Dict[str, SectionScore] = {
         "Contact": _score_contact(contact_text, ""),
