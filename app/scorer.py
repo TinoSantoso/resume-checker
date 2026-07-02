@@ -450,16 +450,41 @@ def _score_skills(text: str) -> SectionScore:
         s.issues.append("No skills detected — try a comma-separated list.")
         return s
 
-    if len(concrete) < 3:
+    # Ponytail: score by canonical coverage (alias-normalized, recognized),
+    # NOT raw token count. Counting tokens rewards shallow breadth —
+    # "React, Git, Docker, Agile, Scrum" outscores a senior's "Kotlin,
+    # Coroutines, Flow, Dagger, gRPC". Pearson -0.126 in v0.4 because of
+    # exactly this. canonical_count filters unknown / vague tokens.
+    canonical_count = len(canonical_found)
+    vague_hits = [sk for sk in skills if sk.lower() in vague]
+    vague_ratio = len(vague_hits) / max(1, n)
+
+    if canonical_count < 3:
         s.score = 3
-        s.issues.append(f"Only {len(concrete)} concrete technical skills found. List named tools/tech.")
-    elif len(concrete) < 8:
+        s.issues.append(
+            f"Only {canonical_count} recognized technical skills found "
+            f"(of {n} listed). List named tools/tech — the scorer checks "
+            "alias-normalized coverage, not raw count."
+        )
+    elif canonical_count < 8:
         s.score = 6
-        s.evidence.append(f"{len(concrete)} concrete skills listed.")
+        s.evidence.append(f"{canonical_count} recognized skills listed.")
         s.issues.append("Consider adding 5–10 more role-relevant tools.")
     else:
         s.score = 8
-        s.evidence.append(f"{len(concrete)} concrete skills listed — solid breadth.")
+        s.evidence.append(
+            f"{canonical_count} recognized skills listed — solid breadth."
+        )
+
+    # Soft-skill noise penalty: applies on top of the canonical score.
+    if vague_ratio >= 0.5:
+        s.score = max(0, s.score - 2)
+        s.issues.append(
+            f"{int(vague_ratio * 100)}% of listed skills are vague phrases "
+            f"({', '.join(vague_hits[:3])}). Replace with named tools."
+        )
+    elif vague_ratio >= 0.25:
+        s.score = max(0, s.score - 1)
 
     # B1: surface canonical detection evidence (only when dictionary
     # found something the naive split didn't, or when category mix is
@@ -474,11 +499,6 @@ def _score_skills(text: str) -> SectionScore:
             f"{cnt} {cat}" for cat, cnt in sorted(by_category.items(), key=lambda x: -x[1])
         )
         s.evidence.append(f"By category: {cat_breakdown}.")
-
-    # Vague phrases penalty.
-    vague_hits = [sk for sk in skills if sk.lower() in vague]
-    if vague_hits:
-        s.issues.append(f"Replace vague soft-skill phrases ({', '.join(vague_hits[:3])}) with named tools.")
 
     # Grouping check: presence of category headers.
     if re.search(r"\b(languages|frameworks|tools|databases|cloud|platforms)\b", text, re.I):

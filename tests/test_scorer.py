@@ -172,7 +172,50 @@ class TestSkillsScoring:
         s = _score_skills(text)
         # 9 concrete skills -> score 8
         assert s.score >= 7.0
-        assert any("concrete" in e.lower() for e in s.evidence)
+        assert any("recognized" in e.lower() for e in s.evidence)
+
+    def test_unknown_tokens_score_lower_than_canonical(self):
+        """Regression for Pearson -0.126: raw-count heuristic rewarded
+        shallow breadth. CV with N recognized tools must score higher than
+        CV with N+M unknown / vague tokens of the same shape.
+        """
+        recognized = "Python, Java, Go, TypeScript, AWS, Docker, PostgreSQL"
+        unrecognized = (
+            "Synergy, Leverage, Best-of-breed, Paradigm-shift, "
+            "Holistic, Ideation, Actionable, Bandwidth, Reach, Mindset, "
+            "Vortex, Fiefdom"
+        )
+        s_rec = _score_skills(recognized)
+        s_unrec = _score_skills(unrecognized)
+        # Same-shape list, but only one is recognized. Recognized must win.
+        assert s_rec.score > s_unrec.score, (
+            f"recognized {s_rec.score} should beat unrecognized {s_unrec.score} "
+            f"(recognized evidence: {s_rec.evidence})"
+        )
+
+    def test_vague_majority_triggers_penalty(self):
+        """A CV whose skill list is mostly vague phrases loses 2 points."""
+        text = (
+            "Hard worker, Team player, Problem solving, Self-motivated, "
+            "Fast learner, Detail oriented, Passionate"
+        )
+        s = _score_skills(text)
+        assert s.score <= 4, (
+            f"vague-heavy list should score <= 4, got {s.score} "
+            f"(evidence: {s.evidence})"
+        )
+
+    def test_vague_minority_mild_penalty(self):
+        """25-50% vague tokens: 1-point penalty (not full 2)."""
+        text = (
+            "Python, AWS, Kubernetes, Docker, "
+            "Hard worker, Team player, Problem solving"
+        )
+        s = _score_skills(text)
+        # 4 canonical, 3 vague → score 6 (≥3 canonical) -1 (mild) = 5
+        assert 4 <= s.score <= 6, (
+            f"mixed list should score 4-6, got {s.score}"
+        )
 
     def test_grouped_skills_bonus(self):
         text = (
