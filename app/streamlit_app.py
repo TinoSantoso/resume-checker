@@ -124,6 +124,27 @@ with st.sidebar:
     if role_pref != "auto":
         st.caption(f"Rubric: **{role_pref}** (manual override)")
 
+    # Ponytail: weight-preset A/B switch. Reuses WEIGHT_PRESETS from
+    # app.weights (the 4 role variants). When the user picks a preset
+    # we override the role_pref for the next scoring run, but leave the
+    # rubric dropdown visible so they can revert. Skip auto-detect when a
+    # preset is active — preset choice implies "compare against this rubric".
+    from app.weights import WEIGHT_PRESETS
+    weight_preset = st.selectbox(
+        "🧪 Weight preset (A/B)",
+        options=list(WEIGHT_PRESETS.keys()),
+        index=0,
+        help=(
+            "Switch the section-weighting variant at runtime to A/B compare "
+            "rubric effects. Reuses the 4 role-tuned weight tables; no new "
+            "weights invented. 'current (general)' matches the default."
+        ),
+    )
+    preset_role = WEIGHT_PRESETS[weight_preset]
+    if preset_role != "general" and role_pref == "auto":
+        # Quietly force the preset's role so the override actually applies.
+        st.session_state["_ab_preset_active"] = preset_role
+
     st.caption("v0.4 · ID/EN bilingual · PDF + DOCX · JD match · role-specific rubrics (swe/data/pm)")
 
 
@@ -478,7 +499,10 @@ def main() -> None:
         with st.spinner("Parsing & scoring…"):
             # Translate UI "auto" → None (lets score_cv auto-detect).
             # Otherwise pass the explicit role through.
-            role_arg = None if role_pref == "auto" else role_pref
+            # Ponytail: weight-preset A/B override takes precedence over
+            # auto-detect — preset choice implies "score against THIS rubric".
+            preset_override = st.session_state.pop("_ab_preset_active", None)
+            role_arg = preset_override or (None if role_pref == "auto" else role_pref)
             report = score_cv(cv_path, jd_text=jd_text if use_jd else None, role=role_arg)
 
         # Per-section LLM feedback runs concurrently (P1.3). Show progress

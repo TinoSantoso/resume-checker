@@ -59,9 +59,20 @@ SECTION_WEIGHTS_BY_ROLE: Dict[str, Dict[str, float]] = {
 # Default weights = 'general' role (backward compatible with v0.x).
 SECTION_WEIGHTS: Dict[str, float] = SECTION_WEIGHTS_BY_ROLE['general']
 
+# Ponytail: named weight presets for the Streamlit A/B sidebar.
+# Reuses the 4 role variants already in SECTION_WEIGHTS_BY_ROLE — no new
+# weights invented. Add an entry here to surface a new experiment in the UI.
+WEIGHT_PRESETS: Dict[str, str] = {
+    "v1 · current (general)": "general",
+    "v1 · swe-tuned": "swe",
+    "v1 · data-tuned": "data",
+    "v1 · pm-tuned": "pm",
+}
+
 __all__ = [
     'RUBRIC_DIR',
     'SUPPORTED_ROLES',
     'SECTION_WEIGHTS',
     'SECTION_WEIGHTS_BY_ROLE',
+    'WEIGHT_PRESETS',
 ]
