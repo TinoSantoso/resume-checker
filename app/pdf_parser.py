@@ -270,6 +270,12 @@ def segment_sections(raw_text: str) -> Dict[str, str]:
     # content, move it back to Summary.
     _reclaim_stranded_summary(sections)
 
+    # Post-pass: collapsed section headers (e.g. "Skills\nEducation" with
+    # nothing between) leave Skills empty and dump skills content into the
+    # next section. If Skills is empty and the *following* section in the
+    # walk order holds skills-like content, move it back.
+    _reclaim_skills_content(sections)
+
     # Drop empty sections, return as dict[str, str]
     return {k: "\n".join(v).strip() for k, v in sections.items() if v}
 
@@ -347,6 +353,58 @@ def _reclaim_stranded_summary(sections: Dict[str, list[str]]) -> None:
             sections["Summary"].extend(reclaimed)
             del lines[best_start:best_start + best_len]
             return  # one block is enough; don't over-reclaim.
+
+
+def _looks_like_skills_block(lines: list[str]) -> bool:
+    """True if the lines read like a Skills list: many comma-separated
+    tokens (≥4 distinct items) OR many canonical-skill dictionary hits.
+
+    Used by ``_reclaim_skills_content`` to identify content that was
+    stranded in the wrong section by collapsed section headers.
+    """
+    text = " ".join(lines)
+    # Comma-separated token run (≥5 tokens, ≥4 of them short <20 chars).
+    tokens = [t.strip() for t in text.split(",") if t.strip()]
+    if len(tokens) >= 5 and sum(1 for t in tokens if len(t) < 20) >= 4:
+        return True
+    # Canonical-skill dictionary hits (lazy import — skill_dictionary is
+    # only needed when this post-pass actually runs, not on every parse).
+    try:
+        from .skill_dictionary import extract_skills
+    except Exception:
+        return False
+    canonical = extract_skills(text)
+    return len(canonical) >= 3
+
+
+# Walk order matches the canonical section order defined in
+# ``segment_sections``; we only reclaim into sections that come BEFORE the
+# one holding the candidate content (collapsed header = empty Skills sits
+# before non-empty Education in the walk order).
+_SKILLS_RECLAIM_ORDER = (
+    "Experience", "Education", "Other",
+)
+
+
+def _reclaim_skills_content(sections: Dict[str, list[str]]) -> None:
+    """If Skills ended up empty (collapsed header swallowed its content),
+    scan later sections for a Skills-shaped block and move it back.
+
+    Mirrors ``_reclaim_stranded_summary`` but for Skills. Only scans
+    sections that legitimately follow Skills in the canonical walk order,
+    so we don't accidentally steal content from earlier sections like
+    Experience that happens to mention tools.
+    """
+    if sections["Skills"]:
+        return  # Skills has content; nothing to reclaim.
+    for sec_name in _SKILLS_RECLAIM_ORDER:
+        lines = sections.get(sec_name, [])
+        if not lines:
+            continue
+        if _looks_like_skills_block(lines):
+            sections["Skills"] = lines
+            sections[sec_name] = []
+            return  # one block is enough.
 
 
 # --------------------------------------------------------------------------- #

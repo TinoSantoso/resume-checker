@@ -519,4 +519,42 @@ class TestSegmentSectionsWrappedParagraph:
         assert any(
             kw in lowered
             for kw in ("revenue", "growth", "pricing", "launched", "ship")
-        ), f"Summary missing expected keyword. Got: {summary!r}"
+        )
+
+    def test_segment_sections_recovers_skills_when_header_collapsed(self):
+        """Regression for v_senior_frontend.pdf: 'Skills' and 'Education'
+        headers appeared consecutively with no content between, so the
+        line-by-line walk emptied Skills and dumped its content into
+        Education. Post-pass must reclaim skills-like lines into Skills."""
+        text = (
+            "Rina Anggraini\n"
+            "rinaa.design\n"
+            "Summary\n"
+            "products in the last 2 years.\n"
+            "Experience\n"
+            "Senior Frontend Engineer\n"
+            "• Improved Lighthouse score from 41 to 87.\n"
+            "Skills\n"
+            "Education\n"
+            "B.Sc. CS — UI, 2018\n"
+            "rina@x.com\n"
+            "Senior Frontend Engineer with 6 years building web apps.\n"
+            "React, TypeScript, and design systems.\n"
+            "— Bukalapak (2020 – Present)\n"
+            "Led the design system rebuild; 80+ components.\n"
+            "React, TypeScript, Next.js, GraphQL, Storybook, Figma, "
+            "Tailwind, Jest, Cypress, Webpack, Vite\n"
+        )
+        sections = segment_sections(text)
+        # Skills bucket must exist (currently empty because of the bug).
+        assert "Skills" in sections, (
+            f"Skills section lost (collapsed header); got: "
+            f"{list(sections.keys())}"
+        )
+        skills_body = sections["Skills"]
+        # The comma-list of tools must land in Skills, not in Education.
+        assert "React, TypeScript" in skills_body, (
+            f"Skills content went elsewhere; got: {skills_body!r}"
+        )
+        # Education bucket must NOT contain the skills list anymore.
+        assert "React, TypeScript" not in sections.get("Education", "")
